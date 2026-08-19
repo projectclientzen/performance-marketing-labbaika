@@ -60,6 +60,9 @@ export const USER_ROLES = {
 export type UserRole = keyof typeof USER_ROLES;
 
 // ===== Kode error API (dipakai DS-05 error-messages & DS-12 envelope) =====
+// PRICE_NOT_FOUND, DUPLICATE_CONFLICT, PERIOD_LOCKED ditambahkan supaya
+// cocok dengan daftar kode di 04-BRIEF-BE.md §6 — versi sebelumnya cuma
+// punya CONFLICT generik, tidak cukup spesifik untuk tiga kasus itu.
 export const ERROR_CODES = {
   BAD_REQUEST: 'BAD_REQUEST',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
@@ -67,6 +70,9 @@ export const ERROR_CODES = {
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
+  DUPLICATE_CONFLICT: 'DUPLICATE_CONFLICT',
+  PERIOD_LOCKED: 'PERIOD_LOCKED',
+  PRICE_NOT_FOUND: 'PRICE_NOT_FOUND',
   RATE_LIMITED: 'RATE_LIMITED',
   STAGE_UNDERFLOW: 'STAGE_UNDERFLOW',
   INTERNAL_ERROR: 'INTERNAL_ERROR',

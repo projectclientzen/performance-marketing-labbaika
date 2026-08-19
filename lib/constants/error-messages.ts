@@ -12,6 +12,10 @@ export const ERROR_MESSAGES: Record<(typeof ERROR_CODES)[keyof typeof ERROR_CODE
   FORBIDDEN: 'Akun tidak punya izin untuk aksi ini. Hubungi admin kalau ini keliru.',
   NOT_FOUND: 'Data tidak ditemukan. Pastikan ID atau filter yang dipakai benar.',
   CONFLICT: 'Data bentrok dengan data yang sudah ada. Periksa kembali sebelum menyimpan.',
+  DUPLICATE_CONFLICT:
+    'Nomor WhatsApp ini sudah dicatat closing untuk keberangkatan yang sama. Konfirmasi Owner diperlukan untuk tetap menyimpan.',
+  PERIOD_LOCKED: 'Periode ini sudah dikunci. Hubungi Owner untuk membuka.',
+  PRICE_NOT_FOUND: 'Harga tidak ditemukan untuk kombinasi ini. Isi harga manual dan tandai sebagai harga khusus.',
   RATE_LIMITED: 'Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.',
   STAGE_UNDERFLOW:
     'Jumlah lead di stage ini tidak cukup. Periksa laporan tanggal tersebut.',

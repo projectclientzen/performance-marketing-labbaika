@@ -44,8 +44,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (error) {
     if (error.message.includes("sudah dikunci")) {
-      return NextResponse.json(fail("FORBIDDEN", error.message), {
-        status: httpStatus("FORBIDDEN"),
+      return NextResponse.json(fail("PERIOD_LOCKED", error.message), {
+        status: httpStatus("PERIOD_LOCKED"),
       });
     }
     return NextResponse.json(fail("INTERNAL_ERROR", error.message), {

@@ -61,19 +61,12 @@ export async function POST(request: Request) {
     const programInfo = Array.isArray(row.programs) ? row.programs[0] : row.programs;
 
     return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: "DUPLICATE_CONFLICT",
-          message: "Nomor WhatsApp ini sudah dicatat closing untuk keberangkatan yang sama",
-          fields: {
-            cs_name: csInfo?.full_name ?? "-",
-            closing_date: row.closing_date,
-            program_name: programInfo?.name ?? "-",
-          },
-        },
-      },
-      { status: 409 },
+      fail("DUPLICATE_CONFLICT", undefined, {
+        cs_name: csInfo?.full_name ?? "-",
+        closing_date: row.closing_date,
+        program_name: programInfo?.name ?? "-",
+      }),
+      { status: httpStatus("DUPLICATE_CONFLICT") },
     );
   }
 
@@ -120,8 +113,8 @@ export async function POST(request: Request) {
       );
     }
     if (error.message.includes("sudah dikunci")) {
-      return NextResponse.json(fail("FORBIDDEN", error.message), {
-        status: httpStatus("FORBIDDEN"),
+      return NextResponse.json(fail("PERIOD_LOCKED", error.message), {
+        status: httpStatus("PERIOD_LOCKED"),
       });
     }
     if (error.message.includes("tidak cukup untuk dikurangi")) {

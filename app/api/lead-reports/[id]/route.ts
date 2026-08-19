@@ -47,8 +47,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (error) {
     if (error.message.includes("sudah dikunci")) {
-      return NextResponse.json(fail("FORBIDDEN", error.message), {
-        status: httpStatus("FORBIDDEN"),
+      return NextResponse.json(fail("PERIOD_LOCKED", error.message), {
+        status: httpStatus("PERIOD_LOCKED"),
       });
     }
     if (error.message.includes("lead_reports_sum_check")) {
