@@ -28,7 +28,7 @@ describe('DS-04 enums', () => {
     expect(Object.values(AD_LEVELS).every((v) => v.label.length > 0)).toBe(true);
     expect(Object.values(USER_ROLES).every((v) => v.label.length > 0)).toBe(true);
     expect(ROOM_TYPES.double.label).toBe('Kamar 2');
-    expect(PAYMENT_STATUS.paid.label).toBe('Lunas');
+    expect(PAYMENT_STATUS.lunas.label).toBe('Lunas');
   });
 
   it('ERROR_CODES punya kode unik dan tipe union yang valid', () => {

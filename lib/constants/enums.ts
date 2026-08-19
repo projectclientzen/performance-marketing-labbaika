@@ -20,18 +20,26 @@ export const LEAD_STAGE_ORDER: readonly LeadStage[] = [
 ] as const;
 
 // ===== Tipe kamar program umroh =====
+// Nilai HARUS sama persis dengan enum room_type di DB (04-BRIEF-BE.md §2.1 /
+// supabase/migrations/001_enums_and_master.sql) — bukan pilihan gaya.
 export const ROOM_TYPES = {
   quad: { label: 'Kamar 4' },
   triple: { label: 'Kamar 3' },
   double: { label: 'Kamar 2' },
+  child: { label: 'Anak' },
+  infant: { label: 'Bayi' },
 } as const;
 export type RoomType = keyof typeof ROOM_TYPES;
 
 // ===== Status pembayaran closing =====
+// Nilai HARUS sama persis dengan enum payment_status di DB (04-BRIEF-BE.md
+// §2.1 / supabase/migrations/001_enums_and_master.sql) — bukan pilihan gaya.
 export const PAYMENT_STATUS = {
-  paid: { label: 'Lunas' },
-  partial: { label: 'DP' },
-  unpaid: { label: 'Belum Bayar' },
+  dp: { label: 'DP' },
+  partial: { label: 'Cicilan' },
+  lunas: { label: 'Lunas' },
+  cancelled: { label: 'Dibatalkan' },
+  refunded: { label: 'Refund' },
 } as const;
 export type PaymentStatus = keyof typeof PAYMENT_STATUS;
 
@@ -44,9 +52,9 @@ export const AD_LEVELS = {
 export type AdLevel = keyof typeof AD_LEVELS;
 
 // ===== Role pengguna =====
+// Hanya dua role di MVP (04-BRIEF-BE.md §2.1: enum user_role 'owner'|'cs').
 export const USER_ROLES = {
   owner: { label: 'Owner' },
-  admin: { label: 'Admin' },
   cs: { label: 'CS' },
 } as const;
 export type UserRole = keyof typeof USER_ROLES;
