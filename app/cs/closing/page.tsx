@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, ApiError } from "@/lib/api/client";
 import { todayJakarta } from "@/lib/utils/date";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { Banner } from "@/components/ui/Banner";
@@ -135,13 +135,13 @@ export default function ClosingFormPage() {
       });
       if (data) router.push("/cs");
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Gagal menyimpan";
-      // POST /api/closings returns fields {cs_name, closing_date, program_name} on 409.
-      try {
-        const parsed = JSON.parse(message);
-        setConflict(parsed);
-      } catch {
-        setError(message);
+      // POST /api/closings returns code DUPLICATE_CONFLICT + fields
+      // {cs_name, closing_date, program_name} on 409 (see ApiError in
+      // lib/api/client.ts).
+      if (e instanceof ApiError && e.code === "DUPLICATE_CONFLICT" && e.fields) {
+        setConflict(e.fields as unknown as DuplicateConflict);
+      } else {
+        setError(e instanceof Error ? e.message : "Gagal menyimpan");
       }
     } finally {
       setSubmitting(false);
