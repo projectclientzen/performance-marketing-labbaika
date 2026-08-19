@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dashboardQuerySchema, parseDashboardQuery } from './query';
+import { parseDashboardQuery } from './query';
 
 const UUID = '3b241101-e2bb-4255-8caf-4136c566a962';
 

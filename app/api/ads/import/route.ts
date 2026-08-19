@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const errors: string[] = [];
 
   for (const row of parsed.data.rows) {
-    let query = supabase.from(table).select("id").eq("brand_id", appUser.brand_id).eq("external_id", row.external_id);
+    const query = supabase.from(table).select("id").eq("brand_id", appUser.brand_id).eq("external_id", row.external_id);
     if (parsed.data.level === "campaign" && parsed.data.ad_account_external_id) {
       const { data: acc } = await supabase
         .from("ad_accounts")

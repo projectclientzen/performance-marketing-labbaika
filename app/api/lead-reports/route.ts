@@ -72,7 +72,17 @@ export async function POST(request: Request) {
         status: httpStatus("PERIOD_LOCKED"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    if (error.message.includes("lead_reports_uniq")) {
+      return NextResponse.json(
+        fail(
+          "CONFLICT",
+          "Laporan untuk tanggal dan source ini sudah ada. Buka menu koreksi untuk mengubahnya.",
+        ),
+        { status: httpStatus("CONFLICT") },
+      );
+    }
+    console.error("[api/lead-reports]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -109,7 +119,8 @@ export async function GET(request: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

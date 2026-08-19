@@ -31,6 +31,7 @@ describe('DS-13 lead report schema', () => {
   });
 
   it('source_id wajib', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { source_id, ...noSource } = validBlock;
     expect(leadReportBlockSchema.safeParse(noSource).success).toBe(false);
   });

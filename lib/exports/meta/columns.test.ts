@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { operationalColumns } from '../operational/columns';
-import { buildMetaRow, metaColumns } from './columns';
+import { buildMetaRow } from './columns';
 
 describe('DS-18 meta columns', () => {
   it('kolom phone/email/name di-hash, city/state tidak', () => {

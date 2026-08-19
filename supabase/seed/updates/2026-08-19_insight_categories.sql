@@ -1,5 +1,17 @@
--- DS-03: Seed kategori insight — alasan lead TIDAK closing (02-PRD-v1.3.md §6)
--- 15 kategori sesuai PRD §6. Idempotent.
+-- S2-06: Update kategori insight untuk database yang SUDAH terisi.
+-- Menghapus 15 baris lama (kategori operasional marketing) dan memasukkan
+-- 15 kategori baru sesuai 02-PRD-v1.3.md §6 (alasan lead tidak closing).
+--
+-- AMAN dijalankan HANYA kalau lead_report_insights masih kosong (0 baris).
+-- Verifikasi dulu:
+--   select count(*) from lead_report_insights;  -- harus 0
+-- Kalau tidak 0, HENTIKAN — penghapusan akan merusak FK. Butuh pemetaan, bukan hapus.
+
+-- 1. Hapus kategori lama (hanya untuk brand labbaika, yang masih ada)
+delete from insight_categories
+where brand_id in (select id from brands where slug = 'labbaika');
+
+-- 2. Masukkan 15 kategori baru dari PRD §6
 insert into insight_categories (brand_id, slug, name, sort_order)
 select b.id, v.slug, v.name, v.sort_order
 from brands b
