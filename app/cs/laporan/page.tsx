@@ -1,0 +1,197 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api/client";
+import { todayJakarta } from "@/lib/utils/date";
+import { NumberStepper } from "@/components/ui/NumberStepper";
+import { StageRail } from "@/components/ui/StageRail";
+import { Banner } from "@/components/ui/Banner";
+
+interface LeadSource {
+  id: string;
+  name: string;
+}
+
+interface Block {
+  source_id: string;
+  total_lead: number;
+  cold: number;
+  consultation: number;
+  offering: number;
+}
+
+function emptyBlock(sourceId: string): Block {
+  return { source_id: sourceId, total_lead: 0, cold: 0, consultation: 0, offering: 0 };
+}
+
+export default function LaporanHarianPage() {
+  const router = useRouter();
+  const [sources, setSources] = useState<LeadSource[]>([]);
+  const [date, setDate] = useState(todayJakarta());
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    apiFetch<LeadSource[]>("/api/master/sources").then((data) => {
+      setSources(data);
+      if (data.length > 0) setBlocks([emptyBlock(data[0].id)]);
+    });
+  }, []);
+
+  function updateBlock(index: number, patch: Partial<Block>) {
+    setBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+  }
+
+  function addBlock() {
+    if (sources.length === 0) return;
+    const usedSourceIds = new Set(blocks.map((b) => b.source_id));
+    const nextSource = sources.find((s) => !usedSourceIds.has(s.id)) ?? sources[0];
+    setBlocks((prev) => [...prev, emptyBlock(nextSource.id)]);
+  }
+
+  function removeBlock(index: number) {
+    setBlocks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const grandTotal = blocks.reduce((sum, b) => sum + b.total_lead, 0);
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiFetch("/api/lead-reports", {
+        method: "POST",
+        body: JSON.stringify({
+          date,
+          blocks,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => router.push("/cs"), 1200);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Laporan tersimpan di perangkat. Akan terkirim saat online.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5 pb-24">
+      <header>
+        <h1 className="font-display text-xl font-bold text-ink-900">Laporan harian</h1>
+        <input
+          type="date"
+          value={date}
+          max={todayJakarta()}
+          onChange={(e) => setDate(e.target.value)}
+          className="mt-2 h-10 rounded-lg border border-line px-3 text-sm"
+        />
+      </header>
+
+      {error && <Banner variant="warn">{error}</Banner>}
+      {saved && <Banner variant="ok">Laporan tersimpan</Banner>}
+
+      <div className="space-y-4">
+        {blocks.map((block, i) => {
+          const sisa = block.total_lead - (block.cold + block.consultation + block.offering);
+          return (
+            <div key={i} className="rounded-[10px] border border-line bg-card p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <select
+                  value={block.source_id}
+                  onChange={(e) => updateBlock(i, { source_id: e.target.value })}
+                  className="h-10 rounded-lg border border-line px-2 text-sm font-medium"
+                >
+                  {sources.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {blocks.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeBlock(i)}
+                    className="text-xs text-danger"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <NumberStepper
+                  label="Total Lead"
+                  value={block.total_lead}
+                  onChange={(v) => updateBlock(i, { total_lead: v })}
+                />
+                <NumberStepper
+                  label="Cold"
+                  value={block.cold}
+                  onChange={(v) => updateBlock(i, { cold: v })}
+                />
+                <NumberStepper
+                  label="Consultation"
+                  value={block.consultation}
+                  onChange={(v) => updateBlock(i, { consultation: v })}
+                />
+                <NumberStepper
+                  label="Offering"
+                  value={block.offering}
+                  onChange={(v) => updateBlock(i, { offering: v })}
+                />
+              </div>
+
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="text-ink-400">Closing: otomatis dari data closing</span>
+                  <span className={sisa === 0 ? "font-mono text-ok" : "font-mono text-warn"}>
+                    Sisa belum dikategorikan: {sisa}
+                  </span>
+                </div>
+                <StageRail
+                  size="medium"
+                  withNumbers
+                  segments={[
+                    { stage: "cold", value: block.cold },
+                    { stage: "consultation", value: block.consultation },
+                    { stage: "offering", value: block.offering },
+                  ]}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={addBlock}
+        className="h-11 w-full rounded-lg border border-dashed border-line text-sm font-medium text-ink-600"
+      >
+        + Tambah source
+      </button>
+
+      <div className="fixed bottom-16 left-0 right-0 border-t border-line bg-card px-4 py-3 shadow-lg">
+        <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-ink-400">Total lead</p>
+            <p className="font-mono text-lg font-semibold text-ink-900">{grandTotal}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || blocks.length === 0}
+            className="h-12 flex-1 rounded-lg bg-brass text-base font-semibold text-navy-900 disabled:opacity-50"
+          >
+            {submitting ? "Menyimpan..." : "Simpan laporan"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

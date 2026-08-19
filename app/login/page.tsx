@@ -33,32 +33,58 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ width: 320 }}>
-        <h1>Labbaika Reporting</h1>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={loading}>
-          {loading ? "Memproses..." : "Masuk"}
-        </button>
-      </form>
+    <main className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
+      <div className="w-full max-w-sm rounded-[10px] bg-card p-8 shadow-lg">
+        <h1 className="font-display text-2xl font-bold text-ink-900">Labbaika</h1>
+        <p className="mt-1 text-sm text-ink-600">Masuk untuk lanjut ke laporan harian</p>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink-600">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 w-full rounded-lg border border-line px-3 text-base focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
+            />
+          </div>
+          <div>
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink-600">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 w-full rounded-lg border border-line px-3 text-base focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-navy-900 transition-opacity disabled:opacity-50"
+          >
+            {loading ? "Memproses..." : "Masuk"}
+          </button>
+        </form>
+
+        <a href="#" className="mt-4 block text-center text-sm text-blue">
+          Lupa password
+        </a>
+      </div>
     </main>
   );
 }
