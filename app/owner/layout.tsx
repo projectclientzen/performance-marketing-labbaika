@@ -10,6 +10,10 @@ const NAV_ITEMS = [
   { href: "/owner/export", label: "Export" },
   { href: "/owner/programs", label: "Program & HPP" },
   { href: "/owner/riwayat", label: "Riwayat" },
+  { href: "/owner/settings/import", label: "Import Ads" },
+  { href: "/owner/settings/lock", label: "Period Lock" },
+  { href: "/owner/settings/audit", label: "Audit Log" },
+  { href: "/owner/settings/users", label: "User" },
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
