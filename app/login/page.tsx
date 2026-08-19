@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,8 +36,8 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
       <div className="w-full max-w-sm rounded-[10px] bg-card p-8 shadow-lg">
-        <h1 className="font-display text-2xl font-bold text-ink-900">Labbaika</h1>
-        <p className="mt-1 text-sm text-ink-600">Masuk untuk lanjut ke laporan harian</p>
+        <Image src="/logo/labbaika-full.png" alt="Labbaika" width={140} height={140} className="mx-auto" priority />
+        <p className="mt-3 text-center text-sm text-ink-600">Masuk untuk lanjut ke laporan harian</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>

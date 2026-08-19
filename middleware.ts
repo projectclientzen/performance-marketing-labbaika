@@ -52,6 +52,13 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse;
 }
 
+// Static assets under /public (logos, icons, manifest) were falling through
+// this matcher and getting redirected to /login by the auth check below —
+// Next's image optimizer then choked on the redirect body ("isn't a valid
+// image, received null") instead of the actual file. Excluding common
+// static extensions in addition to the Next-internal paths.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.json).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|.*\\.(?:png|jpg|jpeg|svg|webp|ico|gif)$).*)",
+  ],
 };

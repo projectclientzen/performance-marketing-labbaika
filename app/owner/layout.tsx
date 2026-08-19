@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const NAV_ITEMS = [
   { href: "/owner", label: "Overview" },
@@ -21,7 +22,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line bg-navy-900 px-4 py-3 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center gap-4">
-          <span className="shrink-0 font-display text-lg font-bold text-text-light">Labbaika</span>
+          <Link href="/owner" className="flex shrink-0 items-center gap-2">
+            <Image src="/logo/labbaika-icon.jpg" alt="Labbaika" width={28} height={28} className="rounded" priority />
+            <span className="font-display text-lg font-bold text-text-light">Labbaika</span>
+          </Link>
           <nav className="flex gap-4 overflow-x-auto">
             {NAV_ITEMS.map((item) => (
               <Link
