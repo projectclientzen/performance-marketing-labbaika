@@ -11,8 +11,6 @@ do $$
 declare
   v_brand uuid; v_cs uuid; v_source uuid; v_program uuid; v_departure uuid;
   v_account uuid; v_camp_a uuid; v_camp_b uuid;
-  v_overview record;
-  v_quality record;
   i int;
 begin
   select id into v_brand from brands where slug = 'labbaika-analytics-test';
@@ -70,6 +68,26 @@ begin
     );
   end loop;
 
+  create temp table t016_ids as
+    select v_brand as brand_id, v_cs as cs_id, v_camp_a as camp_a, v_camp_b as camp_b;
+  grant select on t016_ids to authenticated;
+end $$;
+
+-- get_dashboard_overview/get_campaign_quality are SECURITY DEFINER with a
+-- p_brand_id guard as of migration 019 -- must call as a real authenticated
+-- role with a matching brand, not superuser (which has no auth.uid() claim
+-- and would get "akses ditolak").
+set local role authenticated;
+select set_config('app.test_uid', cs_id::text, false) from t016_ids;
+
+do $$
+declare
+  v_brand uuid; v_camp_a uuid; v_camp_b uuid;
+  v_overview record;
+  v_quality record;
+begin
+  select brand_id, camp_a, camp_b into v_brand, v_camp_a, v_camp_b from t016_ids;
+
   -- Overview scoped to Campaign A (cohort attribution, lead_date-based).
   select * into v_overview from get_dashboard_overview(v_brand, '2026-08-01', '2026-08-31', 'cohort', null, v_camp_a);
   if v_overview.closing <> 10 or v_overview.gross_profit <> 39480000 or v_overview.breakeven_cpp <> 3948000 then
@@ -110,4 +128,5 @@ begin
   raise notice 'TEST PASSED: campaign_attribution_rate = 100%% when every lead has campaign_id';
 end $$;
 
+reset role;
 rollback;

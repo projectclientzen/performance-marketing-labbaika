@@ -10,7 +10,6 @@ do $$
 declare
   v_brand uuid; v_cs uuid; v_source uuid; v_report uuid;
   v_cat_harga uuid; v_cat_jadwal uuid;
-  r record;
 begin
   select id into v_brand from brands where slug = 'labbaika-insight-sum-test';
   select id into v_cs from auth.users limit 1;
@@ -28,6 +27,22 @@ begin
   insert into lead_report_insights (brand_id, lead_report_id, stage, category_id, lead_count)
     values (v_brand, v_report, 'offering', v_cat_jadwal, 5);
 
+  create temp table t018_ids as select v_brand as brand_id, v_cs as cs_id;
+  grant select on t018_ids to authenticated;
+end $$;
+
+-- get_lead_insight_summary is SECURITY DEFINER with a p_brand_id guard as
+-- of migration 019 -- must call as a real authenticated role, not superuser.
+set local role authenticated;
+select set_config('app.test_uid', cs_id::text, false) from t018_ids;
+
+do $$
+declare
+  v_brand uuid;
+  r record;
+begin
+  select brand_id into v_brand from t018_ids;
+
   select * into r from get_lead_insight_summary(v_brand, '2026-08-01', '2026-08-31') where category_name = 'Harga';
 
   -- pct_of_filled = 25/30 = 83.3%, pct_of_total_lead = 25/100 = 25%.
@@ -40,4 +55,5 @@ begin
   raise notice 'TEST PASSED: Harga pct_of_filled=%.1f%% (25/30), pct_of_total_lead=25%% (25/100)', r.pct_of_filled*100;
 end $$;
 
+reset role;
 rollback;
