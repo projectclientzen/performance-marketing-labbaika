@@ -25,3 +25,19 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase local
+/supabase/.branches
+/supabase/.temp
+
+# editor/session state, not part of this project
+.claude/
+.agents/
+skills-lock.json
+
+# unrelated third-party content that has appeared unexpectedly in this
+# working directory during local sessions — never intentionally added here
+/ponytail
+/hallmark
+/ui-ux-pro-max-skill
+/ds-minor-batch-a.bundle
