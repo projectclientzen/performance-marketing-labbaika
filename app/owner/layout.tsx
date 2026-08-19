@@ -4,17 +4,27 @@ const NAV_ITEMS = [
   { href: "/owner", label: "Overview" },
   { href: "/owner/campaigns", label: "Campaign Quality" },
   { href: "/owner/cs", label: "CS Performance" },
+  { href: "/owner/leads", label: "Lead Intelligence" },
+  { href: "/owner/reconciliation", label: "Reconciliation" },
+  { href: "/owner/report", label: "Management Report" },
+  { href: "/owner/export", label: "Export" },
+  { href: "/owner/programs", label: "Program & HPP" },
+  { href: "/owner/riwayat", label: "Riwayat" },
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line bg-navy-900 px-4 py-3 md:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <span className="font-display text-lg font-bold text-text-light">Labbaika</span>
-          <nav className="flex gap-4">
+        <div className="mx-auto flex max-w-6xl items-center gap-4">
+          <span className="shrink-0 font-display text-lg font-bold text-text-light">Labbaika</span>
+          <nav className="flex gap-4 overflow-x-auto">
             {NAV_ITEMS.map((item) => (
-              <Link key={item.href} href={item.href} className="text-sm text-text-light/80 hover:text-brass">
+              <Link
+                key={item.href}
+                href={item.href}
+                className="shrink-0 whitespace-nowrap text-sm text-text-light/80 hover:text-brass"
+              >
                 {item.label}
               </Link>
             ))}

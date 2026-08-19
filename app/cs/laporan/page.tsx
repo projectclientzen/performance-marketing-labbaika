@@ -7,6 +7,7 @@ import { todayJakarta } from "@/lib/utils/date";
 import { NumberStepper } from "@/components/ui/NumberStepper";
 import { StageRail } from "@/components/ui/StageRail";
 import { Banner } from "@/components/ui/Banner";
+import { InsightSheet } from "@/components/InsightSheet";
 
 interface LeadSource {
   id: string;
@@ -33,6 +34,11 @@ export default function LaporanHarianPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [insightTarget, setInsightTarget] = useState<{
+    id: string;
+    consultation: number;
+    offering: number;
+  } | null>(null);
 
   useEffect(() => {
     apiFetch<LeadSource[]>("/api/master/sources").then((data) => {
@@ -62,7 +68,9 @@ export default function LaporanHarianPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiFetch("/api/lead-reports", {
+      const saved = await apiFetch<
+        { id: string; consultation: number; offering: number }[]
+      >("/api/lead-reports", {
         method: "POST",
         body: JSON.stringify({
           date,
@@ -71,7 +79,17 @@ export default function LaporanHarianPage() {
         }),
       });
       setSaved(true);
-      setTimeout(() => router.push("/cs"), 1200);
+      // Insight sheet targets the block with the most consultation+offering
+      // lead — showing one sheet per block would be more correct for
+      // multi-source days, but adds real complexity for a rare case.
+      const primary = saved.reduce((best, r) =>
+        r.consultation + r.offering > best.consultation + best.offering ? r : best,
+      );
+      if (primary.consultation + primary.offering > 0) {
+        setInsightTarget(primary);
+      } else {
+        setTimeout(() => router.push("/cs"), 1200);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Laporan tersimpan di perangkat. Akan terkirim saat online.");
     } finally {
@@ -192,6 +210,18 @@ export default function LaporanHarianPage() {
           </button>
         </div>
       </div>
+
+      {insightTarget && (
+        <InsightSheet
+          open
+          onClose={() => {
+            setInsightTarget(null);
+            router.push("/cs");
+          }}
+          leadReportId={insightTarget.id}
+          stageCounts={{ consultation: insightTarget.consultation, offering: insightTarget.offering }}
+        />
+      )}
     </div>
   );
 }
