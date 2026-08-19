@@ -45,12 +45,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   }
 
-  const { data, error } = await supabase
-    .from("closings")
-    .update({ ...parsed.data, updated_by: appUser.id })
-    .eq("id", id)
-    .select()
-    .maybeSingle();
+  // S0-02 (07-AUDIT-REPO.md): two separate problems, both fixed here.
+  // (1) no .select() — cs has no SELECT policy on closings, so
+  //     .update().select() compiles to UPDATE ... RETURNING and fails RLS
+  //     outright. { count: "exact" } avoids RETURNING entirely.
+  // (2) cs still can't be routed at the base table: UPDATE needs row-level
+  //     SELECT visibility to find candidate rows at all, independent of
+  //     RETURNING — cs has none on `closings` (by design, that's what
+  //     hides HPP), so `UPDATE closings ... WHERE id=$1` matches 0 rows
+  //     for a cs even on their own data (confirmed against the live
+  //     project: 204, count 0, nothing changed). v_closings_cs (migration
+  //     013) is auto-updatable (single table, no aggregates) — routing
+  //     through it lets Postgres's view-rewriter reach the base table
+  //     under the view's own privileges, so cs never needs direct table
+  //     SELECT, and the view's column list already excludes every cost
+  //     column regardless. Owner already works via the base table
+  //     (closings_owner_all covers SELECT), so only cs needs the view.
+  const table = appUser.role === "cs" ? "v_closings_cs" : "closings";
+  const { error, count } = await supabase
+    .from(table)
+    .update({ ...parsed.data, updated_by: appUser.id }, { count: "exact" })
+    .eq("id", id);
 
   if (error) {
     if (error.message.includes("sudah dikunci")) {
@@ -63,16 +78,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         status: httpStatus("VALIDATION_ERROR"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/closings/:id] PATCH", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
 
-  if (!data) {
+  if (!count) {
     return NextResponse.json(fail("NOT_FOUND", "Closing tidak ditemukan"), {
       status: httpStatus("NOT_FOUND"),
     });
   }
 
-  return NextResponse.json(ok(data));
+  return NextResponse.json(ok({ id }));
 }

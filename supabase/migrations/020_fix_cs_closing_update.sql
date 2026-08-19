@@ -1,0 +1,52 @@
+-- 020_fix_cs_closing_update.sql
+-- Fixes the remaining half of S0-02 (07-AUDIT-REPO.md): PATCH and cancel
+-- for a cs-owned closing "succeed" (204, count in header) but silently
+-- match ZERO rows and change nothing. POST (insert) does not have this
+-- problem and needed no further fix beyond dropping .select() (already
+-- shipped: app/api/closings/route.ts).
+--
+-- Root cause, confirmed against the LIVE project with a real signed-in cs
+-- JWT over the actual REST API (not just a psql simulation — the first
+-- attempt at this fix looked right in isolated testing and was wrong):
+--
+--   UPDATE always requires row-level SELECT visibility to determine which
+--   existing rows are candidates, independently of RETURNING/.select().
+--   closings has exactly one SELECT-capable policy: closings_owner_all
+--   (FOR ALL, which covers SELECT too). closings_cs_update is FOR UPDATE
+--   only — it can authorize the write but grants no read visibility. With
+--   no SELECT policy of its own, a cs session can never make ANY row
+--   "exist" for UPDATE's matching phase — `UPDATE ... WHERE id = $1`
+--   matches 0 rows even for a cs's own data. Not an error: 204, count: 0.
+--
+--   EXPLAIN on the live project showed the combined RLS filter as
+--     (brand_id = current_brand_id())
+--     AND ((current_app_role() = 'owner') OR (cs_id = auth.uid()))
+--     AND (current_app_role() = 'owner')
+--   — that trailing unconditional `AND (role = 'owner')` is exactly the
+--   missing-SELECT-policy fallback locking every cs out.
+--
+-- First fix attempt: add a cs-scoped SELECT policy on closings plus a
+-- column-level GRANT excluding the cost columns. Caught before shipping —
+-- cs and owner are the SAME Postgres role (`authenticated`), only
+-- distinguished by RLS predicates evaluated per-row. Column-level GRANT
+-- has no row context; restricting it would have taken cost columns away
+-- from owner too (GET /api/closings reads the base table directly for
+-- owner), while including them would have handed cost columns straight
+-- to any cs with the new SELECT policy. Column grants can't do
+-- role-instance-scoped hiding; only RLS can, and RLS is row-scoped, not
+-- column-scoped — this exact mismatch is why v_closings_cs exists as a
+-- separate object in the first place.
+--
+-- Actual fix: v_closings_cs (migration 013) is already a single-table,
+-- no-aggregate, cs_id-filtered view — Postgres's automatic updatable-view
+-- rewriting applies to it (confirmed: information_schema.columns shows
+-- is_updatable = YES for its non-generated columns). Granting UPDATE on
+-- the view lets Postgres rewrite `UPDATE v_closings_cs SET ... WHERE id=$1`
+-- into the equivalent base-table UPDATE using the VIEW's privileges, not
+-- the caller's — cs never needs direct SELECT on `closings` at all, and
+-- the view's column list (no cost_at_transaction/cost_of_sales/
+-- gross_profit) is exactly what a cs can ever touch either way. All base-
+-- table triggers (T-1, T-4, ...) fire normally; view updates aren't a
+-- separate code path, the rewriter targets the real table.
+
+grant update on v_closings_cs to authenticated;
