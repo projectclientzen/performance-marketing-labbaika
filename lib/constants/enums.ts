@@ -5,11 +5,13 @@
  */
 
 // ===== Stage funnel lead =====
+// Label & warna mengikuti prototype FE "Labbaika Reporting" (tema Subuh):
+//   cold #8FA0AB · consultation #2E9AD6 · offering #D6A83C · closing #1E9E72
 export const LEAD_STAGES = {
-  cold: { label: 'Cold', color: '#64748B' },
-  consultation: { label: 'Konsultasi', color: '#F59E0B' },
-  offering: { label: 'Offering', color: '#8B5CF6' },
-  closing: { label: 'Closing', color: '#10B981' },
+  cold: { label: 'Cold', color: '#8FA0AB' },
+  consultation: { label: 'Consultation', color: '#2E9AD6' },
+  offering: { label: 'Offering', color: '#D6A83C' },
+  closing: { label: 'Closing', color: '#1E9E72' },
 } as const;
 export type LeadStage = keyof typeof LEAD_STAGES;
 export const LEAD_STAGE_ORDER: readonly LeadStage[] = [
@@ -19,11 +21,20 @@ export const LEAD_STAGE_ORDER: readonly LeadStage[] = [
   'closing',
 ] as const;
 
+// Label alternatif untuk tabel rekap CS (prototype F-09: "Cold · Hot · Prospek").
+// Form laporan memakai Consultation/Offering; rekap per CS memakai Hot/Prospek.
+export const LEAD_STAGE_CS_LABELS: Record<LeadStage, string> = {
+  cold: 'Cold',
+  consultation: 'Hot',
+  offering: 'Prospek',
+  closing: 'Closing',
+} as const;
+
 // ===== Tipe kamar program umroh =====
 export const ROOM_TYPES = {
-  quad: { label: 'Kamar 4' },
-  triple: { label: 'Kamar 3' },
-  double: { label: 'Kamar 2' },
+  quad: { label: 'Quad' },
+  triple: { label: 'Triple' },
+  double: { label: 'Double' },
 } as const;
 export type RoomType = keyof typeof ROOM_TYPES;
 
