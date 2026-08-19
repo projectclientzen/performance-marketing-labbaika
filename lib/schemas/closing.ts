@@ -1,26 +1,60 @@
 import { z } from 'zod';
-import { PAYMENT_STATUS } from '../constants/enums';
 import { normalizePhoneID } from '../utils/phone';
 
 /**
- * Skema closing — DS-14. Field mengikuti 02-PRD-v1.1.md §8.1.
+ * Skema closing — DS-14, field mengikuti 02-PRD-v1.3.md §8.1 dan
+ * supabase/migrations/004_closings.sql (bentuk tabel yang sudah dites, jadi
+ * acuan lebih kuat daripada draft PRD manapun).
+ *
+ * Versi sebelumnya di file ini punya `lead_id` yang tidak berpadanan dengan
+ * kolom manapun di closings, dan kehilangan sebagian besar field wajib
+ * (first_name, source_id, previous_stage, program_id, departure_id,
+ * room_type) — dibetulkan di sini, bukan patch tempel, karena skema lama
+ * tidak bisa dipakai untuk insert closing yang valid sama sekali.
+ *
  * Zod memberi pesan ramah; constraint database (CC-B05) penjamin terakhir.
  */
 
+const ROOM_TYPE_VALUES = ['quad', 'triple', 'double', 'child', 'infant'] as const;
+const PREVIOUS_STAGE_VALUES = ['cold', 'consultation', 'offering'] as const;
+// 'cancelled' sengaja tidak masuk di sini — pembatalan lewat endpoint
+// /api/closings/:id/cancel, bukan lewat create/update biasa.
+const CREATABLE_PAYMENT_STATUS = ['dp', 'partial', 'lunas', 'refunded'] as const;
+
 export const closingSchema = z
   .object({
-    lead_id: z.string().uuid(),
-    lead_date: z.string().date('Format tanggal YYYY-MM-DD'),
-    closing_date: z.string().date('Format tanggal YYYY-MM-DD'),
-    pax: z.number().int().min(1, 'pax minimal 1'),
-    total_value: z.number().int().nonnegative(),
-    paid_amount: z.number().int().nonnegative(),
-    payment_status: z.enum(Object.keys(PAYMENT_STATUS) as [string, ...string[]]),
+    first_name: z.string().min(1, 'Nama depan wajib diisi'),
+    last_name: z.string().optional(),
     whatsapp: z.string().refine((v) => normalizePhoneID(v) !== null, {
       message: 'Nomor WhatsApp Indonesia tidak valid',
     }),
+    email: z.string().email('Email tidak valid').optional(),
+
+    source_id: z.string().uuid('source_id wajib'),
+    campaign_id: z.string().uuid().optional(),
+    lead_date: z.string().date('Format tanggal YYYY-MM-DD'),
+    previous_stage: z.enum(PREVIOUS_STAGE_VALUES, {
+      errorMap: () => ({ message: 'previous_stage harus cold, consultation, atau offering' }),
+    }),
+
+    closing_date: z.string().date('Format tanggal YYYY-MM-DD'),
+    program_id: z.string().uuid('program_id wajib'),
+    departure_id: z.string().uuid('departure_id wajib'),
+    room_type: z.enum(ROOM_TYPE_VALUES),
+    pax: z.number().int().min(1, 'pax minimal 1'),
+
+    price_at_transaction: z.number().int().nonnegative(),
+    total_value: z.number().int().nonnegative(),
     is_price_override: z.boolean().default(false),
     price_note: z.string().optional(),
+
+    payment_status: z.enum(CREATABLE_PAYMENT_STATUS),
+    paid_amount: z.number().int().nonnegative(),
+
+    province_id: z.string().optional(),
+    city_id: z.string().optional(),
+    address: z.string().optional(),
+
     pdp_consent: z.boolean().default(false),
     pdp_consent_at: z.string().datetime().optional(),
   })
