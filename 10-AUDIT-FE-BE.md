@@ -34,7 +34,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
 | 15 | Tidak ada cara menambah user baru | S2 | BE | ⬜ |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
-| **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | 🔄 migrasi 023 + FE `684280d` selesai, BE jalan |
+| **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | ⬜ terhalang #15 (tidak ada `POST /api/users`) |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
@@ -815,11 +815,24 @@ bisa membaca nama, funnel, jumlah closing, dan tingkat pembatalan rekannya. Pemi
 menyatakan eksplisit bahwa antar-CS tidak boleh saling melihat, jadi 023 memindahkan
 penyaringannya ke dalam fungsi. Filter di route dipertahankan sebagai lapis kedua.
 
+### Status kode: selesai
+
+| Bagian | Commit |
+|---|---|
+| DB — migrasi 023, rollback, `tests/sql` | `93b328f` |
+| BE — schema, route, `lib/utils/profit.ts` | `4b9d995` |
+| FE — lima layar owner | `684280d` |
+
+`npm run lint` (0 error), `typecheck`, dan 85 test hijau.
+
 ### Belum selesai
 
-- **Migrasi 023 belum dijalankan ke database.** Butuh izin eksplisit Maszen.
-- Sisa BE (`app/api/programs/[id]/costs/route.ts`, `lib/schemas/program.ts`,
-  `brand-settings`, `overview` meta, `lib/utils/profit.ts`) sedang dikerjakan.
+- **Migrasi 023 belum dijalankan ke database.** Ini yang paling penting. Sampai dijalankan,
+  kode dan database tidak sinkron: FE dan API sudah meminta `gross_booking_value`, `roas`,
+  serta `net_revenue`, sementara fungsi di database masih versi lama yang mengembalikan
+  `gross_profit`. Dashboard owner akan menampilkan nilai kosong. Butuh izin eksplisit
+  Maszen — menjalankan migrasi ke produksi adalah tindakan tersendiri, bukan turunan dari
+  izin commit atau push.
 - `02-PRD-v1.3.md` dan `04-BRIEF-BE.md` masih memuat HPP di §4, §11, F-13a. Dokumen sumber
   perlu menyusul, kalau tidak pembaca berikutnya akan membangun ulang HPP dari sana.
 - Role `advertiser` (advertiser + owner satu akses) belum ditambahkan. Sengaja ditunda
