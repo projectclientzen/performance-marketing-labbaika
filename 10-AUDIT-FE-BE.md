@@ -38,7 +38,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
 | **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode + test (`23944f9`, `c342872`) — **migrasi 024 belum dijalankan ke produksi** |
 | **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
-| **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | 🔄 migrasi 025 siap, **belum dijalankan** |
+| **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | ✅ 025 dijalankan & terverifikasi di live |
 | **24** | **CI tidak menjalankan `tests/sql`; 1 kerentanan critical** | S2 | infra | ✅ `47def84` |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
@@ -1016,6 +1016,21 @@ Seluruh isinya idempotent — sudah diuji dijalankan dua kali berturut-turut.
    tabel, jadi 025 memperbaikinya tanpa perlu tahu jalur mana yang ditempuh.
 
 Suite SQL tetap 18 berkas, 0 gagal setelah 025.
+
+### Terverifikasi di live — 20 Agustus, sesudah 025 dijalankan
+
+| Probe | Hasil | Arti |
+|---|---|---|
+| `GET /api/health` | `{"success":true,…,"query_ok":true}` | 23b sembuh; jalur anon balas data, bukan error |
+| `rpc/current_has_owner_access` sebagai anon | `null` | boleh dipanggil, tidak membocorkan apa pun |
+| `GET /closings` sebagai anon | `[]` | nol baris, bukan `42501` — perilaku RLS yang benar |
+| `rpc/get_dashboard_overview` sebagai anon | `permission denied for function` | **23a sembuh** — lapis grant kembali menolak lebih awal |
+| `GET /v_closing_enriched` sebagai anon | `PGRST205` | kebocoran S0-01 tetap tertutup |
+
+Blok verifikasi di dalam 025 juga lolos tanpa exception, yang berarti tidak ada fungsi
+tersisa yang menyebut `program_costs` dan tabelnya benar-benar hilang. Itu sekaligus
+menjawab pertanyaan terbuka dari §22: trigger HPP **tidak** lagi hidup di database live,
+jadi risiko "setiap INSERT closing gagal" sudah nol.
 
 
 ---
