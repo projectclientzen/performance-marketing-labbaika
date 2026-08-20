@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
-
-function monthRange(year: number, month: number): { from: string; to: string } {
-  const from = `${year}-${String(month).padStart(2, "0")}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
-  const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  return { from, to };
-}
+import { monthRange } from "@/lib/utils/date";
 
 /**
  * Bundles Acquisition/Lead Quality/Sales/Profitability (from
@@ -20,7 +15,7 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
   }
-  if (!appUser || appUser.role !== "owner") {
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -63,8 +58,11 @@ export async function GET(request: Request) {
   ]);
 
   if (overview.error || campaigns.error || csPerformance.error) {
-    const message = overview.error?.message ?? campaigns.error?.message ?? csPerformance.error?.message;
-    return NextResponse.json(fail("INTERNAL_ERROR", message), {
+    console.error(
+      "[api/reports/monthly] GET",
+      overview.error ?? campaigns.error ?? csPerformance.error,
+    );
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

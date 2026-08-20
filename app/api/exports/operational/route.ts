@@ -1,6 +1,8 @@
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { fail, httpStatus } from "@/lib/api/envelope";
 import { operationalColumns } from "@/lib/exports/operational/columns";
+import { PAYMENT_STATUS } from "@/lib/constants/enums";
 
 const PAGE_SIZE = 1000;
 
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return Response.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -36,6 +38,16 @@ export async function POST(request: Request) {
   const programId: string | undefined = body.program;
   const sourceId: string | undefined = body.source;
   const status: string | undefined = body.status;
+
+  // p_status is a payment_status enum on the DB side — an unvalidated value
+  // would surface as a Postgres enum error mid-stream, which (see below)
+  // reads to the client as a truncated-but-successful CSV. Reject up front
+  // instead.
+  if (status !== undefined && !Object.hasOwn(PAYMENT_STATUS, status)) {
+    return Response.json(fail("VALIDATION_ERROR", "status tidak valid", { status }), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
 
   const { data: sources } = await supabase.from("lead_sources").select("id, name");
   const sourceNameById = new Map((sources ?? []).map((s: { id: string; name: string }) => [s.id, s.name]));
@@ -50,38 +62,45 @@ export async function POST(request: Request) {
 
       let offset = 0;
       for (;;) {
-        let query = supabase
-          .from("v_closing_enriched")
-          .select("*")
-          .eq("brand_id", appUser.brand_id)
-          .order("closing_date", { ascending: false })
-          .range(offset, offset + PAGE_SIZE - 1);
-
-        if (from) query = query.gte("closing_date", from);
-        if (to) query = query.lte("closing_date", to);
-        if (csId) query = query.eq("cs_id", csId);
-        if (programId) query = query.eq("program_id", programId);
-        if (sourceId) query = query.eq("source_id", sourceId);
-        if (status) query = query.eq("payment_status", status);
-
-        const { data, error } = await query;
-        if (error || !data || data.length === 0) break;
+        const { data, error } = await supabase.rpc("get_export_operational", {
+          p_brand_id: appUser.brand_id,
+          p_from: from ?? null,
+          p_to: to ?? null,
+          p_cs: csId ?? null,
+          p_program: programId ?? null,
+          p_source: sourceId ?? null,
+          p_status: status ?? null,
+          p_offset: offset,
+          p_limit: PAGE_SIZE,
+        });
+        // A mid-stream error must NOT look like a clean end-of-data: the
+        // header (and possibly prior pages) are already flushed, so a
+        // silent `break` here would hand the owner a 200 OK CSV that's
+        // quietly missing rows, with no way to tell it apart from a
+        // complete export. controller.error() breaks the download instead
+        // — worse UX, but an honest failure beats a wrong number.
+        if (error) {
+          console.error("[api/exports/operational]", error);
+          controller.error(new Error("Export gagal"));
+          return;
+        }
+        if (!data || data.length === 0) break;
 
         for (const row of data) {
           const mapped = {
             lead_date: row.lead_date,
-            name: [row.first_name, row.last_name].filter(Boolean).join(" "),
-            whatsapp: row.whatsapp_e164,
-            city: row.city_name,
+            name: row.name,
+            whatsapp: row.whatsapp,
+            city: row.city,
             source: sourceNameById.get(row.source_id) ?? "",
-            stage: "closing",
+            stage: row.stage,
             closing_date: row.closing_date,
-            program: row.program_name,
+            program: row.program,
             room_type: row.room_type,
             pax: row.pax,
             total_value: row.total_value,
             paid_amount: row.paid_amount,
-            status: row.payment_status,
+            status: row.status,
           };
           const cells = operationalColumns.map((c) => {
             const raw = c.accessor(mapped);

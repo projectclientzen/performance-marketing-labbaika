@@ -4,7 +4,6 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-audit-test');
-insert into auth.users default values;
 
 do $$
 declare
@@ -13,7 +12,7 @@ declare
   v_old_cold int; v_new_cold int;
 begin
   select id into v_brand from brands where slug = 'labbaika-audit-test';
-  select id into v_cs from auth.users limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
   insert into lead_sources (brand_id, name, slug)
     values (v_brand, 'Facebook CTWA', 'facebook-ctwa') returning id into v_source;

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { leadReportPayloadSchema, leadReportPayloadSchemaCS } from "@/lib/schemas/report";
+
+const dateParamSchema = z.string().date("Format tanggal YYYY-MM-DD");
 
 export async function POST(request: Request) {
   const { user, appUser, supabase } = await getAuthedAppUser();
@@ -72,7 +75,17 @@ export async function POST(request: Request) {
         status: httpStatus("PERIOD_LOCKED"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    if (error.message.includes("lead_reports_uniq")) {
+      return NextResponse.json(
+        fail(
+          "CONFLICT",
+          "Laporan untuk tanggal dan source ini sudah ada. Buka menu koreksi untuk mengubahnya.",
+        ),
+        { status: httpStatus("CONFLICT") },
+      );
+    }
+    console.error("[api/lead-reports]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -97,6 +110,18 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
   const csParam = searchParams.get("cs");
 
+  // An out-of-range date like "2026-02-31" isn't caught by any type here —
+  // it's a syntactically valid string that Postgres rejects, which
+  // (pre-fix) surfaced as a raw 500 on every 31st-day query for a
+  // 30-day/February month (10-AUDIT-FE-BE.md #9).
+  for (const [key, value] of [["date", date], ["from", from], ["to", to]] as const) {
+    if (value !== null && !dateParamSchema.safeParse(value).success) {
+      return NextResponse.json(fail("VALIDATION_ERROR", undefined, { [key]: "Format tanggal YYYY-MM-DD tidak valid" }), {
+        status: httpStatus("VALIDATION_ERROR"),
+      });
+    }
+  }
+
   let query = supabase.from("lead_reports").select("*").order("report_date", { ascending: false });
 
   // RLS already scopes cs to their own rows; this filter is for owner
@@ -109,7 +134,8 @@ export async function GET(request: Request) {
   const { data, error } = await query;
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

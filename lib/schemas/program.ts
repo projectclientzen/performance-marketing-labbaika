@@ -66,27 +66,6 @@ export const priceSchema = z
 
 export type Price = z.infer<typeof priceSchema>;
 
-/** Sama bentuk dengan priceSchema, dipakai untuk program_costs (owner-only). */
-export const costSchema = z
-  .object({
-    id: z.string().uuid().optional(),
-    program_id: z.string().uuid(),
-    departure_id: z.string().uuid().optional(),
-    room_type: z.enum(Object.keys(ROOM_TYPES) as [string, ...string[]]),
-    cost_price: z.number().int().nonnegative('cost_price tidak boleh negatif'),
-    effective_date: z.string().date('Format tanggal YYYY-MM-DD'),
-    end_date: z.string().date('Format tanggal YYYY-MM-DD').optional(),
-    status: z.enum(['active', 'inactive']).default('active'),
-    note: z.string().optional(),
-  })
-  .superRefine((val, ctx) => {
-    if (val.end_date && val.end_date <= val.effective_date) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['end_date'],
-        message: 'end_date harus setelah effective_date',
-      });
-    }
-  });
-
-export type Cost = z.infer<typeof costSchema>;
+// costSchema dihapus di migrasi 023 (10-AUDIT-FE-BE.md #20): tabel program_costs
+// tidak ada lagi. HPP di luar lingkup sistem — yang diukur harga program dan
+// omset, bukan margin.

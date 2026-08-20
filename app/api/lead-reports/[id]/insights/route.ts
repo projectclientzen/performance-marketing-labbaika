@@ -11,6 +11,15 @@ const insightSchema = z.object({
 });
 
 const putSchema = z.object({
+  // FE only sends categories with count > 0, so an all-zeroed stage means
+  // `insights` for that stage is simply absent from the array. Deriving
+  // `stages` from insights alone (as before) can't tell "nothing to clear"
+  // apart from "clear everything the cs just zeroed out" -- an empty
+  // `insights` array left the previous rows in place with no way for cs to
+  // undo a wrong entry (10-AUDIT-FE-BE.md #6). `stages` lets the client say
+  // which tabs it's actually submitting, independent of whether any row in
+  // them is non-zero.
+  stages: z.array(z.enum(["cold", "consultation", "offering", "closing"])).optional(),
   insights: z.array(insightSchema),
 });
 
@@ -28,7 +37,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .eq("lead_report_id", id);
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports/[id]/insights]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -64,7 +74,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     });
   }
 
-  const stages = [...new Set(parsed.data.insights.map((i) => i.stage))];
+  const stages = parsed.data.stages ?? [...new Set(parsed.data.insights.map((i) => i.stage))];
 
   if (stages.length > 0) {
     const { error: deleteError } = await supabase
@@ -104,7 +114,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         status: httpStatus("VALIDATION_ERROR"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports/[id]/insights]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

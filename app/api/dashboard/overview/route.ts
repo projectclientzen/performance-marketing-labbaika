@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { todayJakarta } from "@/lib/utils/date";
 
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -37,7 +38,8 @@ export async function GET(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/dashboard/overview]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -45,7 +47,6 @@ export async function GET(request: Request) {
   return NextResponse.json(
     ok(data, {
       attribution_mode: attribution,
-      cost_coverage_rate: (data as { cost_coverage_rate: number | null })?.cost_coverage_rate ?? null,
     }),
   );
 }

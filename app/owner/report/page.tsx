@@ -15,7 +15,6 @@ interface MonthlyReport {
     total_lead: number;
     closing: number;
     gross_booking_value: number;
-    gross_profit: number;
     roi: number | null;
   };
   campaigns: unknown[];
@@ -86,7 +85,7 @@ export default function ManagementReportPage() {
           <MetricCard label="Spend" value={formatRupiah(report.overview.spend)} />
           <MetricCard label="Lead" value={String(report.overview.total_lead)} />
           <MetricCard label="Closing" value={String(report.overview.closing)} />
-          <MetricCard label="Gross Profit" value={formatRupiah(report.overview.gross_profit)} />
+          <MetricCard label="Omset" value={formatRupiah(report.overview.gross_booking_value)} />
           <MetricCard label="ROI" value={formatROI(report.overview.roi)} variant="accent" />
         </div>
       )}

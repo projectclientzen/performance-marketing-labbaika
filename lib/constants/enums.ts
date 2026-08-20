@@ -52,9 +52,11 @@ export const AD_LEVELS = {
 export type AdLevel = keyof typeof AD_LEVELS;
 
 // ===== Role pengguna =====
-// Hanya dua role di MVP (04-BRIEF-BE.md §2.1: enum user_role 'owner'|'cs').
+// Nilai HARUS sama persis dengan enum user_role di DB. `advertiser` ditambahkan
+// migrasi 024 dengan akses setara owner — lihat lib/auth/roles.ts.
 export const USER_ROLES = {
   owner: { label: 'Owner' },
+  advertiser: { label: 'Advertiser' },
   cs: { label: 'CS' },
 } as const;
 export type UserRole = keyof typeof USER_ROLES;

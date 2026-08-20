@@ -34,6 +34,9 @@ export default function LaporanHarianPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // S1-03: idempotency key dibuat SEKALI per pengisian form (bukan per klik),
+  // supaya klik ganda / retry kirim key yang sama dan tidak lolos cek duplikat.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [insightTarget, setInsightTarget] = useState<{
     id: string;
     consultation: number;
@@ -75,17 +78,25 @@ export default function LaporanHarianPage() {
         body: JSON.stringify({
           date,
           blocks,
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: idempotencyKey,
         }),
       });
       setSaved(true);
+      // Key lama sudah terpakai — buat baru untuk pengisian berikutnya.
+      setIdempotencyKey(crypto.randomUUID());
       // Insight sheet targets the block with the most consultation+offering
       // lead — showing one sheet per block would be more correct for
       // multi-source days, but adds real complexity for a rare case.
-      const primary = saved.reduce((best, r) =>
-        r.consultation + r.offering > best.consultation + best.offering ? r : best,
-      );
-      if (primary.consultation + primary.offering > 0) {
+      // reduce with no initial value throws on an empty array — the batch
+      // RPC can return zero rows (idempotency conflict landed on
+      // on-conflict-do-nothing), which would otherwise crash this page
+      // after the save already succeeded (10-AUDIT-FE-BE.md #8).
+      const primary = saved.length > 0
+        ? saved.reduce((best, r) =>
+            r.consultation + r.offering > best.consultation + best.offering ? r : best,
+          )
+        : null;
+      if (primary && primary.consultation + primary.offering > 0) {
         setInsightTarget(primary);
       } else {
         setTimeout(() => router.push("/cs"), 1200);
@@ -203,7 +214,11 @@ export default function LaporanHarianPage() {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || blocks.length === 0}
+            disabled={
+              submitting ||
+              blocks.length === 0 ||
+              blocks.some((b) => b.total_lead - (b.cold + b.consultation + b.offering) !== 0)
+            }
             className="h-12 flex-1 rounded-lg bg-brass text-base font-semibold text-navy-900 disabled:opacity-50"
           >
             {submitting ? "Menyimpan..." : "Simpan laporan"}

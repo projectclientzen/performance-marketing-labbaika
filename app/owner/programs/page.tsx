@@ -25,14 +25,6 @@ interface PriceRow {
   effective_date: string;
   end_date: string | null;
 }
-interface CostRow {
-  id: string;
-  program_id: string;
-  room_type: string;
-  cost_price: number;
-  effective_date: string;
-}
-
 const ROOM_TYPES = ["quad", "triple", "double", "child", "infant"];
 
 export default function ProgramsPage() {
@@ -40,13 +32,11 @@ export default function ProgramsPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [prices, setPrices] = useState<PriceRow[]>([]);
-  const [costs, setCosts] = useState<CostRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [newProgram, setNewProgram] = useState({ name: "", destination: "", duration_days: 9 });
   const [newDeparture, setNewDeparture] = useState({ departure_date: "" });
   const [newPrice, setNewPrice] = useState({ room_type: "quad", price: 0, effective_date: "" });
-  const [newCost, setNewCost] = useState({ room_type: "quad", cost_price: 0, effective_date: "" });
 
   function loadPrograms() {
     apiFetch<Program[]>("/api/programs").then(setPrograms);
@@ -57,7 +47,6 @@ export default function ProgramsPage() {
     setSelected(programId);
     apiFetch<Departure[]>(`/api/programs/${programId}/departures`).then(setDepartures);
     apiFetch<PriceRow[]>(`/api/programs/${programId}/prices`).then(setPrices);
-    apiFetch<CostRow[]>(`/api/programs/${programId}/costs`).then(setCosts).catch(() => setCosts([]));
   }
 
   async function addProgram() {
@@ -90,17 +79,6 @@ export default function ProgramsPage() {
       loadDetail(selected);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menambah harga");
-    }
-  }
-
-  async function addCost() {
-    if (!selected) return;
-    setError(null);
-    try {
-      await apiFetch(`/api/programs/${selected}/costs`, { method: "POST", body: JSON.stringify(newCost) });
-      loadDetail(selected);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menambah HPP");
     }
   }
 
@@ -168,33 +146,6 @@ export default function ProgramsPage() {
               <input type="number" placeholder="Harga" value={newPrice.price} onChange={(e) => setNewPrice((s) => ({ ...s, price: parseInt(e.target.value, 10) || 0 }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
               <input type="date" value={newPrice.effective_date} onChange={(e) => setNewPrice((s) => ({ ...s, effective_date: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
               <button type="button" onClick={addPrice} className="h-9 rounded-lg border border-line px-3 text-sm font-medium">
-                Tambah
-              </button>
-            </div>
-          </section>
-
-          <section className="rounded-[10px] border border-danger/30 bg-danger/5 p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-danger">HPP (Owner-only)</h2>
-              <span className="rounded-full bg-danger/10 px-2 py-0.5 text-[10px] font-medium text-danger">
-                Tidak terlihat CS
-              </span>
-            </div>
-            <ul className="mb-3 space-y-1 text-sm">
-              {costs.map((c) => (
-                <li key={c.id} className="flex justify-between font-mono text-ink-900">
-                  <span>{c.room_type} — sejak {formatDateID(c.effective_date)}</span>
-                  <span>{formatRupiah(c.cost_price)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex flex-wrap gap-2">
-              <select value={newCost.room_type} onChange={(e) => setNewCost((s) => ({ ...s, room_type: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm">
-                {ROOM_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <input type="number" placeholder="HPP" value={newCost.cost_price} onChange={(e) => setNewCost((s) => ({ ...s, cost_price: parseInt(e.target.value, 10) || 0 }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
-              <input type="date" value={newCost.effective_date} onChange={(e) => setNewCost((s) => ({ ...s, effective_date: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
-              <button type="button" onClick={addCost} className="h-9 rounded-lg border border-danger/40 px-3 text-sm font-medium text-danger">
                 Tambah
               </button>
             </div>

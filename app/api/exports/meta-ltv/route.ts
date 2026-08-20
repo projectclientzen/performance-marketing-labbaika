@@ -1,4 +1,5 @@
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { fail, httpStatus } from "@/lib/api/envelope";
 import { metaColumns, buildMetaRow } from "@/lib/exports/meta/columns";
 
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return Response.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -39,28 +40,30 @@ export async function POST(request: Request) {
 
       let offset = 0;
       for (;;) {
-        let query = supabase
-          .from("v_closing_enriched")
-          .select("*")
-          .eq("brand_id", appUser.brand_id)
-          .eq("pdp_consent", true)
-          .neq("payment_status", "cancelled")
-          .order("closing_date", { ascending: false })
-          .range(offset, offset + PAGE_SIZE - 1);
-
-        if (from) query = query.gte("closing_date", from);
-        if (to) query = query.lte("closing_date", to);
-
-        const { data, error } = await query;
-        if (error || !data || data.length === 0) break;
+        const { data, error } = await supabase.rpc("get_export_meta_ltv", {
+          p_brand_id: appUser.brand_id,
+          p_from: from ?? null,
+          p_to: to ?? null,
+          p_offset: offset,
+          p_limit: PAGE_SIZE,
+        });
+        // See app/api/exports/operational/route.ts for why error and
+        // empty-data can't share a `break`: a silent break here would hand
+        // Meta a truncated audience list that looks like a complete one.
+        if (error) {
+          console.error("[api/exports/meta-ltv]", error);
+          controller.error(new Error("Export gagal"));
+          return;
+        }
+        if (!data || data.length === 0) break;
 
         for (const row of data) {
           const hashedRow = buildMetaRow({
-            phone: row.whatsapp_e164,
+            phone: row.phone,
             email: row.email,
-            name: [row.first_name, row.last_name].filter(Boolean).join(" "),
-            city: row.city_name,
-            state: row.province_name,
+            name: row.name,
+            city: row.city,
+            state: row.state,
           });
           const cells = [
             ...metaColumns.map((c) => hashedRow[c.header]),

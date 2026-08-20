@@ -21,17 +21,25 @@ const PREVIOUS_STAGE_VALUES = ['cold', 'consultation', 'offering'] as const;
 // /api/closings/:id/cancel, bukan lewat create/update biasa.
 const CREATABLE_PAYMENT_STATUS = ['dp', 'partial', 'lunas', 'refunded'] as const;
 
+// FE selalu mengirim field opsional yang dikosongkan sebagai `""`, bukan
+// menghilangkannya dari body (10-AUDIT-FE-BE.md #2/#3). `.optional()` Zod
+// hanya menerima field yang benar-benar tidak ada, jadi `""` lolos ke
+// `.email()`/FK dan gagal atau (untuk province_id/city_id) menabrak
+// constraint FK di DB sebagai 500. Ubah string kosong jadi undefined
+// sebelum validasi opsionalnya jalan.
+const emptyToUndefined = (v: unknown) => (v === '' ? undefined : v);
+
 export const closingSchema = z
   .object({
     first_name: z.string().min(1, 'Nama depan wajib diisi'),
-    last_name: z.string().optional(),
+    last_name: z.preprocess(emptyToUndefined, z.string().optional()),
     whatsapp: z.string().refine((v) => normalizePhoneID(v) !== null, {
       message: 'Nomor WhatsApp Indonesia tidak valid',
     }),
-    email: z.string().email('Email tidak valid').optional(),
+    email: z.preprocess(emptyToUndefined, z.string().email('Email tidak valid').optional()),
 
     source_id: z.string().uuid('source_id wajib'),
-    campaign_id: z.string().uuid().optional(),
+    campaign_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     lead_date: z.string().date('Format tanggal YYYY-MM-DD'),
     previous_stage: z.enum(PREVIOUS_STAGE_VALUES, {
       errorMap: () => ({ message: 'previous_stage harus cold, consultation, atau offering' }),
@@ -46,13 +54,13 @@ export const closingSchema = z
     price_at_transaction: z.number().int().nonnegative(),
     total_value: z.number().int().nonnegative(),
     is_price_override: z.boolean().default(false),
-    price_note: z.string().optional(),
+    price_note: z.preprocess(emptyToUndefined, z.string().optional()),
 
     payment_status: z.enum(CREATABLE_PAYMENT_STATUS),
     paid_amount: z.number().int().nonnegative(),
 
-    province_id: z.string().optional(),
-    city_id: z.string().optional(),
+    province_id: z.preprocess(emptyToUndefined, z.string().optional()),
+    city_id: z.preprocess(emptyToUndefined, z.string().optional()),
     address: z.string().optional(),
 
     pdp_consent: z.boolean().default(false),

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 /**
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
   }
-  if (!appUser || appUser.role !== "owner") {
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
   const errors: string[] = [];
 
   for (const row of parsed.data.rows) {
-    let query = supabase.from(table).select("id").eq("brand_id", appUser.brand_id).eq("external_id", row.external_id);
+    const query = supabase.from(table).select("id").eq("brand_id", appUser.brand_id).eq("external_id", row.external_id);
     if (parsed.data.level === "campaign" && parsed.data.ad_account_external_id) {
       const { data: acc } = await supabase
         .from("ad_accounts")

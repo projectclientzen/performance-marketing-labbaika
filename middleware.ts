@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 
 const PUBLIC_PATHS = ["/login"];
 const OWNER_ONLY_PREFIXES = ["/owner"];
@@ -42,7 +43,7 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (appUser?.role !== "owner") {
+    if (!hasOwnerAccess(appUser?.role)) {
       const url = request.nextUrl.clone();
       url.pathname = "/no-access";
       return NextResponse.rewrite(url, { status: 403 });

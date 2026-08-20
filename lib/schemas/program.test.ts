@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { costSchema, departureSchema, priceSchema, programSchema } from './program';
+import { departureSchema, priceSchema, programSchema } from './program';
 
-describe('DS-15 program/departure/price/cost schema', () => {
+describe('DS-15 program/departure/price schema', () => {
   it('program valid', () => {
     const r = programSchema.safeParse({
       name: 'Umroh Reguler',
@@ -88,7 +88,7 @@ describe('DS-15 program/departure/price/cost schema', () => {
     ).toBe(false);
   });
 
-  it('room_type child dan infant valid untuk price dan cost', () => {
+  it('room_type child dan infant valid untuk price', () => {
     expect(
       priceSchema.safeParse({
         program_id: '3b241101-e2bb-4255-8caf-4136c566a962',
@@ -98,23 +98,13 @@ describe('DS-15 program/departure/price/cost schema', () => {
       }).success,
     ).toBe(true);
     expect(
-      costSchema.safeParse({
+      priceSchema.safeParse({
         program_id: '3b241101-e2bb-4255-8caf-4136c566a962',
         room_type: 'child',
-        cost_price: 20_000_000,
+        price: 20_000_000,
         effective_date: '2026-08-01',
       }).success,
     ).toBe(true);
   });
 
-  it('cost_price negatif ditolak', () => {
-    expect(
-      costSchema.safeParse({
-        program_id: '3b241101-e2bb-4255-8caf-4136c566a962',
-        room_type: 'quad',
-        cost_price: -1,
-        effective_date: '2026-08-01',
-      }).success,
-    ).toBe(false);
-  });
 });

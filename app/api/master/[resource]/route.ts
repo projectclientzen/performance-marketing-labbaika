@@ -29,7 +29,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ res
 
   const { data, error } = await query;
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/master/[resource]]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

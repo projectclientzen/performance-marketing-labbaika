@@ -51,3 +51,16 @@ export function intervalDays(leadDate: string, closingDate: string): number {
 export function monthKey(dateStr: string): string {
   return dateStr.slice(0, 7);
 }
+
+/**
+ * First/last day of a calendar month as 'YYYY-MM-DD'. `new Date(y, m, 0)`
+ * rolls back to the last day of month `m - 1`, which is the correct day
+ * count for every month including leap Februaries -- unlike a fixed `-31`,
+ * which is a valid date for 7 months and a Postgres error for the other 5.
+ */
+export function monthRange(year: number, month: number): { from: string; to: string } {
+  const from = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { from, to };
+}

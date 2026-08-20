@@ -16,7 +16,6 @@ interface CsRow {
   offering: number;
   closing: number;
   gross_booking_value: number;
-  gross_profit: number;
   avg_closing_interval: number | null;
   median_closing_interval: number | null;
   cancellation_rate: number | null;
@@ -50,7 +49,7 @@ export default function CsPerformancePage() {
               <th className="p-3">CS</th>
               <th className="p-3 text-right">Total Lead</th>
               <th className="p-3 text-right">Closing</th>
-              <th className="p-3 text-right">Gross Profit</th>
+              <th className="p-3 text-right">Omset</th>
               <th className="p-3 text-right">Avg Interval</th>
               <th className="p-3 text-right">Cancellation Rate</th>
               <th className="p-3 text-right">Hari Lapor</th>
@@ -62,7 +61,7 @@ export default function CsPerformancePage() {
                 <td className="p-3 font-sans font-medium text-ink-900">{r.cs_name}</td>
                 <td className="p-3 text-right">{r.total_lead}</td>
                 <td className="p-3 text-right">{r.closing}</td>
-                <td className="p-3 text-right font-semibold text-brass">{formatRupiah(r.gross_profit)}</td>
+                <td className="p-3 text-right font-semibold text-brass">{formatRupiah(r.gross_booking_value)}</td>
                 <td className="p-3 text-right">
                   {r.avg_closing_interval != null ? `${Math.round(r.avg_closing_interval)} hari` : "-"}
                 </td>

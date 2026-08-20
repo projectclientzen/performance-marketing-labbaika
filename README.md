@@ -34,6 +34,21 @@ Salin `.env.example` ke `.env.local`. Variabel:
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key — **hanya di server, jangan pernah di client** |
 | `META_ACCESS_TOKEN` | Token akses Meta Marketing API (untuk export/import iklan) |
 
+## Deploy
+
+Variabel di `.env.local` di atas harus **diisi ulang di hosting** (Vercel) —
+tidak ikut ter-deploy dari `.env.local`, yang gitignored.
+
+| Variabel | Boleh sampai ke browser? |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Ya |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Ya |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Tidak — server-only** |
+| `META_ACCESS_TOKEN` | **Tidak — server-only** |
+
+Kalau ada yang tidak beres setelah deploy, cek `GET /api/health` dulu — endpoint
+itu melaporkan env var mana yang kosong dan apakah Supabase reachable.
+
 ## Migrasi & seed
 
 ```bash

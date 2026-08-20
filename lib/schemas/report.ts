@@ -18,12 +18,18 @@ export const leadReportBlockSchema = z
     offering: nonNegativeInt,
   })
   .superRefine((val, ctx) => {
+    // DB constraint (003_lead_reports.sql) requires exact equality, not
+    // "doesn't exceed" -- `closing` is trigger-managed and 0 at insert
+    // time, so any gap is lead that was never categorized at all, not a
+    // legitimate partial state. Validating only the upper bound let a
+    // request with leftover reach the DB and fail there as a raw
+    // constraint-violation message (10-AUDIT-FE-BE.md #7).
     const sum = val.cold + val.consultation + val.offering;
-    if (sum > val.total_lead) {
+    if (sum !== val.total_lead) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['cold'],
-        message: 'cold + consultation + offering tidak boleh melebihi total_lead',
+        message: 'cold + consultation + offering harus sama dengan total_lead',
       });
     }
   });

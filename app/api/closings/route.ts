@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { closingSchema } from "@/lib/schemas/closing";
 import { normalizePhoneID } from "@/lib/utils/phone";
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     .neq("payment_status", "cancelled")
     .maybeSingle();
 
-  if (conflict && !(force && appUser.role === "owner")) {
+  if (conflict && !(force && hasOwnerAccess(appUser.role))) {
     type ConflictRow = {
       closing_date: string;
       app_users: { full_name: string } | { full_name: string }[] | null;
@@ -70,40 +71,50 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data, error } = await supabase
+  // S0-02 (07-AUDIT-REPO.md): no .select() here. Supabase compiles
+  // .insert().select() to INSERT ... RETURNING, which needs a SELECT
+  // policy on the resulting row — cs deliberately has none on closings
+  // (jalur baca cs adalah v_closings_cs), so every cs-initiated
+  // closing failed outright with "new row violates row-level security
+  // policy" before this fix. { count: "exact" } gets a row count from the
+  // command tag instead, no RETURNING involved, no RLS SELECT check.
+  const id = crypto.randomUUID();
+  const { error, count } = await supabase
     .from("closings")
-    .insert({
-      brand_id: appUser.brand_id,
-      cs_id: appUser.id,
-      first_name: parsed.data.first_name,
-      last_name: parsed.data.last_name,
-      whatsapp_raw: parsed.data.whatsapp,
-      email: parsed.data.email,
-      pdp_consent: parsed.data.pdp_consent,
-      pdp_consent_at: parsed.data.pdp_consent_at,
-      lead_date: parsed.data.lead_date,
-      source_id: parsed.data.source_id,
-      campaign_id: parsed.data.campaign_id,
-      previous_stage: parsed.data.previous_stage,
-      closing_date: parsed.data.closing_date,
-      program_id: parsed.data.program_id,
-      departure_id: parsed.data.departure_id,
-      room_type: parsed.data.room_type,
-      pax: parsed.data.pax,
-      price_at_transaction: parsed.data.price_at_transaction,
-      total_value: parsed.data.total_value,
-      is_price_override: parsed.data.is_price_override,
-      price_note: parsed.data.price_note,
-      payment_status: parsed.data.payment_status,
-      paid_amount: parsed.data.paid_amount,
-      province_id: parsed.data.province_id,
-      city_id: parsed.data.city_id,
-      address: parsed.data.address,
-      created_by: appUser.id,
-      updated_by: appUser.id,
-    })
-    .select()
-    .single();
+    .insert(
+      {
+        id,
+        brand_id: appUser.brand_id,
+        cs_id: appUser.id,
+        first_name: parsed.data.first_name,
+        last_name: parsed.data.last_name,
+        whatsapp_raw: parsed.data.whatsapp,
+        email: parsed.data.email,
+        pdp_consent: parsed.data.pdp_consent,
+        pdp_consent_at: parsed.data.pdp_consent_at,
+        lead_date: parsed.data.lead_date,
+        source_id: parsed.data.source_id,
+        campaign_id: parsed.data.campaign_id,
+        previous_stage: parsed.data.previous_stage,
+        closing_date: parsed.data.closing_date,
+        program_id: parsed.data.program_id,
+        departure_id: parsed.data.departure_id,
+        room_type: parsed.data.room_type,
+        pax: parsed.data.pax,
+        price_at_transaction: parsed.data.price_at_transaction,
+        total_value: parsed.data.total_value,
+        is_price_override: parsed.data.is_price_override,
+        price_note: parsed.data.price_note,
+        payment_status: parsed.data.payment_status,
+        paid_amount: parsed.data.paid_amount,
+        province_id: parsed.data.province_id,
+        city_id: parsed.data.city_id,
+        address: parsed.data.address,
+        created_by: appUser.id,
+        updated_by: appUser.id,
+      },
+      { count: "exact" },
+    );
 
   if (error) {
     if (error.message.includes("Nomor WhatsApp tidak valid")) {
@@ -122,12 +133,19 @@ export async function POST(request: Request) {
         status: httpStatus("STAGE_UNDERFLOW"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/closings] POST", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
 
-  return NextResponse.json(ok(data));
+  if (!count) {
+    return NextResponse.json(fail("INTERNAL_ERROR", "Closing tidak tersimpan"), {
+      status: httpStatus("INTERNAL_ERROR"),
+    });
+  }
+
+  return NextResponse.json(ok({ id }));
 }
 
 export async function GET(request: Request) {

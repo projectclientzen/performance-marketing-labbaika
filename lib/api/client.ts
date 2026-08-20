@@ -14,12 +14,17 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  const body = await res.json();
-  if (!res.ok || body.error) {
+  // A 500/502/504 from a crashed runtime, gateway error, or platform
+  // timeout can have an empty or non-JSON body — res.json() throws a raw
+  // SyntaxError in that case instead of the ApiError callers already
+  // handle, which (in a caller with no try/catch) surfaces as a stuck
+  // loading state rather than a shown error.
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.error) {
     throw new ApiError(
-      body.error?.message ?? `Request gagal (${res.status})`,
-      body.error?.code,
-      body.error?.fields,
+      body?.error?.message ?? `Request gagal (${res.status})`,
+      body?.error?.code,
+      body?.error?.fields,
     );
   }
   return body.data as T;

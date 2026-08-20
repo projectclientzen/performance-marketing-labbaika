@@ -32,6 +32,10 @@ export async function GET(request: Request) {
     });
   }
 
+  // Sejak migrasi 023 penyaringan per-cs dilakukan DI DALAM get_cs_performance,
+  // bukan di sini: filter TypeScript bukan batas keamanan ketika RPC-nya bisa
+  // dipanggil langsung dari browser dengan anon key (10-AUDIT-FE-BE.md #20b).
+  // Baris ini dipertahankan sebagai lapis kedua, bukan sebagai penjaga utama.
   const rows = (data ?? []) as { cs_id: string }[];
   const scoped = appUser.role === "cs" ? rows.filter((r) => r.cs_id === appUser.id) : rows;
 

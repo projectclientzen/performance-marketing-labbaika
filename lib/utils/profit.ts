@@ -1,39 +1,42 @@
 /**
- * Matematika profit untuk tampilan — DS-09b.
+ * Matematika efektivitas iklan untuk tampilan — DS-09b.
  * Helper TS hanya untuk pratinjau & format. Angka dashboard selalu dari server
- * (SQL view `v_profitability`, CC-B20). Kalau beda, SQL yang menang.
+ * (fungsi `get_dashboard_overview`, migrasi 023). Kalau beda, SQL yang menang.
  * Semua pembagian dengan penyebut nol mengembalikan null.
+ *
+ * Versi sebelumnya menghitung gross profit dari HPP. HPP dibuang seluruhnya di
+ * migrasi 023 (10-AUDIT-FE-BE.md #20) — sistem ini mengukur efektivitas iklan
+ * di atas omset, bukan margin. `gross_profit`, `margin_pct`, dan
+ * `net_contribution` ikut hilang; `roas` masuk.
  */
 
 export interface ProfitInput {
   revenue: number;
-  cost_of_sales: number;
   ad_spend: number;
   closing_count: number;
 }
 
 export interface ProfitResult {
-  gross_profit: number;
-  margin_pct: number | null;
-  net_contribution: number;
+  net_revenue: number;
   roi: number | null;
+  roas: number | null;
   cpp: number | null;
   breakeven_cpp: number | null;
   ad_cost_ratio: number | null;
 }
 
 export function profit(input: ProfitInput): ProfitResult {
-  const { revenue, cost_of_sales, ad_spend, closing_count } = input;
-  const gross_profit = revenue - cost_of_sales;
-  const net_contribution = gross_profit - ad_spend;
+  const { revenue, ad_spend, closing_count } = input;
 
   return {
-    gross_profit,
-    margin_pct: revenue === 0 ? null : gross_profit / revenue,
-    net_contribution,
-    roi: ad_spend === 0 ? null : net_contribution / ad_spend,
+    net_revenue: revenue - ad_spend,
+    roi: ad_spend === 0 ? null : (revenue - ad_spend) / ad_spend,
+    roas: ad_spend === 0 ? null : revenue / ad_spend,
     cpp: closing_count === 0 ? null : ad_spend / closing_count,
-    breakeven_cpp: closing_count === 0 ? null : gross_profit / closing_count,
+    // Tanpa HPP, titik impas biaya per closing sama dengan omset per closing:
+    // di atas angka itu, satu closing menghabiskan lebih banyak biaya iklan
+    // daripada uang yang dibawanya.
+    breakeven_cpp: closing_count === 0 ? null : revenue / closing_count,
     ad_cost_ratio: revenue === 0 ? null : ad_spend / revenue,
   };
 }

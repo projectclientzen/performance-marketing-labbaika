@@ -23,11 +23,11 @@ interface Overview {
   reached_offering: number;
   reached_closing: number;
   gross_booking_value: number;
-  gross_profit: number;
+  net_revenue: number;
   roi: number | null;
+  roas: number | null;
   cpp: number | null;
   breakeven_cpp: number | null;
-  cost_coverage_rate: number | null;
   campaign_attribution_rate: number | null;
   median_closing_interval_days: number | null;
 }
@@ -97,20 +97,10 @@ export default function OwnerOverviewPage() {
         <MetricCard label="Spend" value={formatRupiah(data?.spend ?? 0)} loading={loading} />
         <MetricCard label="Lead" value={String(data?.total_lead ?? 0)} loading={loading} />
         <MetricCard label="Closing" value={String(data?.closing ?? 0)} loading={loading} />
-        <MetricCard label="Gross Profit" value={formatRupiah(data?.gross_profit ?? 0)} loading={loading} />
+        <MetricCard label="Omset" value={formatRupiah(data?.gross_booking_value ?? 0)} loading={loading} />
       </div>
 
-      <MetricCard
-        label="ROI"
-        value={formatROI(data?.roi ?? null)}
-        variant="accent"
-        loading={loading}
-        chip={
-          data && data.cost_coverage_rate !== null && data.cost_coverage_rate < 1
-            ? `estimasi (HPP ${formatPercent(data.cost_coverage_rate)} terisi)`
-            : undefined
-        }
-      />
+      <MetricCard label="ROI" value={formatROI(data?.roi ?? null)} variant="accent" loading={loading} />
 
       {data && (
         <ThresholdCard

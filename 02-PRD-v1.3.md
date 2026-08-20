@@ -1,5 +1,24 @@
 # PRD Labbaika Group Reporting Platform
 
+> **KOREKSI LINGKUP — 20 Agustus 2026. Baca sebelum membangun apa pun dari dokumen ini.**
+>
+> Seluruh pembahasan **HPP, gross profit, margin, dan break-even berbasis biaya**
+> di dokumen ini **sudah dibatalkan** dan **tidak boleh dibangun**. Pemilik produk
+> adalah advertiser, bukan bagian keuangan: yang diukur sistem ini adalah
+> efektivitas iklan di atas **omset**, bukan margin.
+>
+> Yang berlaku sekarang: `roi = (omset − spend) / spend`, `roas = omset / spend`,
+> `breakeven_cpp = omset / jumlah closing`. Tidak ada `gross_profit`,
+> `margin_pct`, `cost_coverage_rate`, tabel `program_costs`, maupun trigger T-7.
+> Harga program masuk lingkup; HPP program tidak.
+>
+> Ditambahkan juga role `advertiser`, dengan akses setara `owner` — satu
+> dashboard utama untuk keduanya.
+>
+> Rinciannya di `10-AUDIT-FE-BE.md` §20 dan §21. Kalau dokumen ini dan berkas itu
+> berbeda, **berkas itu yang menang.**
+
+
 Version: MVP v1.3
 Status: siap dieksekusi
 Perubahan dari v1.0: 20 fix dari `01-AUDIT-PRD.md`

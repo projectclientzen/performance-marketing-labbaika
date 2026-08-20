@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 const unlockSchema = z.object({
@@ -20,7 +21,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (!user) {
     return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
   }
-  if (!appUser || appUser.role !== "owner") {
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -38,7 +39,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     .eq("id", id);
 
   if (updateError) {
-    return NextResponse.json(fail("INTERNAL_ERROR", updateError.message), {
+    console.error("[api/period-locks/:id] DELETE (update reason)", updateError);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -49,7 +51,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     .eq("id", id);
 
   if (deleteError) {
-    return NextResponse.json(fail("INTERNAL_ERROR", deleteError.message), {
+    console.error("[api/period-locks/:id] DELETE", deleteError);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

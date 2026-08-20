@@ -4,17 +4,20 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-insight-sum-test');
-insert into auth.users default values;
 
 do $$
 declare
-  v_brand uuid; v_cs uuid; v_source uuid; v_report uuid;
+  v_brand uuid; v_cs uuid; v_owner uuid; v_source uuid; v_report uuid;
   v_cat_harga uuid; v_cat_jadwal uuid;
-  r record;
 begin
   select id into v_brand from brands where slug = 'labbaika-insight-sum-test';
-  select id into v_cs from auth.users limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
+  -- Migrasi 023 menambahkan guard role=owner di get_lead_insight_summary:
+  -- agregat insight se-brand adalah layar Owner (F-10), bukan konsumsi cs.
+  -- Berkas ini karena itu memanggilnya sebagai owner.
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
+  insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Maszen', 'owner');
   insert into lead_sources (brand_id, name, slug) values (v_brand, 'Facebook CTWA', 'fb-ctwa') returning id into v_source;
   insert into insight_categories (brand_id, name, slug) values (v_brand, 'Harga', 'harga') returning id into v_cat_harga;
   insert into insight_categories (brand_id, name, slug) values (v_brand, 'Jadwal', 'jadwal') returning id into v_cat_jadwal;
@@ -28,6 +31,22 @@ begin
   insert into lead_report_insights (brand_id, lead_report_id, stage, category_id, lead_count)
     values (v_brand, v_report, 'offering', v_cat_jadwal, 5);
 
+  create temp table t018_ids as select v_brand as brand_id, v_cs as cs_id, v_owner as owner_id;
+  grant select on t018_ids to authenticated;
+end $$;
+
+-- get_lead_insight_summary is SECURITY DEFINER with a p_brand_id guard as
+-- of migration 019 -- must call as a real authenticated role, not superuser.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', owner_id::text, false) from t018_ids;
+
+do $$
+declare
+  v_brand uuid;
+  r record;
+begin
+  select brand_id into v_brand from t018_ids;
+
   select * into r from get_lead_insight_summary(v_brand, '2026-08-01', '2026-08-31') where category_name = 'Harga';
 
   -- pct_of_filled = 25/30 = 83.3%, pct_of_total_lead = 25/100 = 25%.
@@ -37,7 +56,11 @@ begin
   if round(r.pct_of_total_lead, 4) <> 0.25 then
     raise exception 'TEST FAILED: pct_of_total_lead=%, expected 0.25', r.pct_of_total_lead;
   end if;
-  raise notice 'TEST PASSED: Harga pct_of_filled=%.1f%% (25/30), pct_of_total_lead=25%% (25/100)', r.pct_of_filled*100;
+  -- plpgsql raise hanya mengenal `%`, bukan format seperti `%.1f` -- versi
+  -- sebelumnya mencetak "83.33333333333333333300.1f%". Bulatkan di argumennya.
+  raise notice 'TEST PASSED: Harga pct_of_filled=% persen (25/30), pct_of_total_lead=25 persen (25/100)',
+    round(r.pct_of_filled * 100, 1);
 end $$;
 
+reset role;
 rollback;
