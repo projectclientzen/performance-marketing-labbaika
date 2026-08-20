@@ -9,6 +9,21 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    # Seluruh model keamanan sistem ini adalah RLS, dan tests/sql satu-satunya
+    # tempat RLS diuji — Vitest cuma menyentuh fungsi murni di lib/. Sebelum ini
+    # CI tidak menjalankannya sama sekali, jadi bukti isolasi antar-CS dan guard
+    # brand tidak dijaga apa pun (10-AUDIT-FE-BE.md #18).
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+        ports:
+          - 5432:5432
+    env:
+      PGURL: postgresql://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
 
@@ -28,3 +43,22 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # Bootstrap memasang tiruan schema `auth` Supabase (auth.users, auth.uid()
+      # yang membaca request.jwt.claim.sub, role anon/authenticated). Test
+      # mengimpersonasi pengguna dengan set_config('request.jwt.claim.sub', ...)
+      # setelah `set role authenticated` — persis yang dilakukan PostgREST per
+      # request, jadi policy yang lolos di sini lolos juga di Supabase.
+      - name: SQL tests
+        run: |
+          set -e
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f tests/sql/000_bootstrap.sql
+          for f in supabase/migrations/0*.sql; do
+            echo "migrasi $(basename "$f")"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          for f in tests/sql/0*.sql; do
+            [ "$(basename "$f")" = 000_bootstrap.sql ] && continue
+            echo "test $(basename "$f")"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done

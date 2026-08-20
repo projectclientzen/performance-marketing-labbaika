@@ -56,7 +56,10 @@ begin
   if round(r.pct_of_total_lead, 4) <> 0.25 then
     raise exception 'TEST FAILED: pct_of_total_lead=%, expected 0.25', r.pct_of_total_lead;
   end if;
-  raise notice 'TEST PASSED: Harga pct_of_filled=%.1f%% (25/30), pct_of_total_lead=25%% (25/100)', r.pct_of_filled*100;
+  -- plpgsql raise hanya mengenal `%`, bukan format seperti `%.1f` -- versi
+  -- sebelumnya mencetak "83.33333333333333333300.1f%". Bulatkan di argumennya.
+  raise notice 'TEST PASSED: Harga pct_of_filled=% persen (25/30), pct_of_total_lead=25 persen (25/100)',
+    round(r.pct_of_filled * 100, 1);
 end $$;
 
 reset role;
