@@ -214,7 +214,24 @@ export default function OwnerOverviewPage() {
 
       {data && (
         <section className="rounded-card border border-line bg-card p-4">
-          <h2 className="font-display text-sm font-semibold text-ink-900">Funnel — {modeLabel}</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-sm font-semibold text-ink-900">Funnel — {modeLabel}</h2>
+            {/* Lama lead menjadi closing. Datanya sudah ada sejak awal —
+                closings.interval_days kolom generated (closing_date - lead_date)
+                di 004 — tapi selama ini hanya dipakai diam-diam untuk banner
+                Cohort, tidak pernah ditampilkan sebagai angka.
+                Median, bukan rata-rata: satu closing yang datang 200 hari
+                kemudian menggeser rata-rata jauh dari pengalaman sehari-hari,
+                sementara median tidak. Rata-rata per CS tetap ada di F-09. */}
+            <span className="text-xs text-ink-400">
+              Median lead → closing{" "}
+              <span className="font-mono font-semibold text-ink-900">
+                {data.median_closing_interval_days != null
+                  ? `${Math.round(data.median_closing_interval_days)} hari`
+                  : "—"}
+              </span>
+            </span>
+          </div>
 
           <div className="mt-3.5 space-y-2">
             <FunnelRow
