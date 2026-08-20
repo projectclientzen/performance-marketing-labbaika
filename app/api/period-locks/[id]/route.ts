@@ -38,7 +38,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     .eq("id", id);
 
   if (updateError) {
-    return NextResponse.json(fail("INTERNAL_ERROR", updateError.message), {
+    console.error("[api/period-locks/:id] DELETE (update reason)", updateError);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -49,7 +50,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     .eq("id", id);
 
   if (deleteError) {
-    return NextResponse.json(fail("INTERNAL_ERROR", deleteError.message), {
+    console.error("[api/period-locks/:id] DELETE", deleteError);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

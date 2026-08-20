@@ -63,8 +63,11 @@ export async function GET(request: Request) {
   ]);
 
   if (overview.error || campaigns.error || csPerformance.error) {
-    const message = overview.error?.message ?? campaigns.error?.message ?? csPerformance.error?.message;
-    return NextResponse.json(fail("INTERNAL_ERROR", message), {
+    console.error(
+      "[api/reports/monthly] GET",
+      overview.error ?? campaigns.error ?? csPerformance.error,
+    );
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
