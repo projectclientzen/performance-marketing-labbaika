@@ -1,6 +1,7 @@
 # Serah Terima — Persiapan Migrasi ke VPS
 
-Untuk Hermes. Ditulis 20 Agustus 2026, setelah audit infrastruktur menyeluruh.
+Untuk Hermes. Ditulis 20 Agustus 2026, difinalkan 21 Agustus setelah seluruh pekerjaan
+ditutup dan diverifikasi ulang.
 
 Berkas ini hanya soal **memindahkan sistem**. Untuk sejarah temuan dan alasan di balik
 keputusan teknis, baca `10-AUDIT-FE-BE.md` — itu acuan yang menang kalau dokumen lain
@@ -217,8 +218,65 @@ sampai langkah 8 selesai.
 
 ---
 
-## 7. Pekerjaan yang masih berjalan
+## 7. Keadaan kode saat serah terima
 
-Per 20 Agustus masih ada beberapa tugas terbuka di `10-AUDIT-FE-BE.md` (#12, #10, #26, #17,
-F-05). Semuanya kode aplikasi, tidak menyentuh skema database kecuali kalau muncul migrasi
-029 — periksa nomor migrasi tertinggi sebelum mulai, jangan berasumsi 028 yang terakhir.
+Seluruh temuan `10-AUDIT-FE-BE.md` sudah ditutup: 22 diperbaiki, 2 dicoret setelah diperiksa,
+2 keputusan produk tercatat. Sembilan belas layar sudah disamakan dengan prototype.
+
+Diverifikasi ulang 21 Agustus, tepat sebelum berkas ini difinalkan:
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `npm run typecheck` | bersih |
+| `npm run lint` | 0 error (1 warning lama: custom font di `app/layout.tsx`) |
+| `npm test` | 97 lulus |
+| `tests/sql/*` lewat `apply-migrations.sh` ke database kosong | 20 berkas, 0 gagal |
+| `npm run build` | sukses, `.next/standalone/server.js` terbentuk |
+| Silang pemanggilan API di FE terhadap route yang ada | 31 route, tidak ada yang menggantung |
+
+Migrasi tertinggi saat ini **028**. Berikutnya 029 — **jangan berasumsi**, periksa
+`ls supabase/migrations/` sebelum menulis, karena pekerjaan bisa berlanjut setelah berkas ini
+ditulis.
+
+### Batas yang jujur
+
+Dua hal tidak pernah bisa diverifikasi dari lingkungan tempat pekerjaan ini dilakukan, dan
+sebaiknya tidak dianggap terbukti:
+
+**Tidak satu pun dari 19 layar pernah dilihat langsung.** Tidak ada kredensial login di
+lingkungan agent. Yang diverifikasi: struktur, kontrak komponen, keamanan, nilai terukur
+(`getComputedStyle` dibandingkan langsung dengan prototype untuk sidebar), dan seluruh
+perilaku basis data lewat test SQL sebagai role sungguhan. Penilaian visual milik pemilik
+produk.
+
+**Dua alur hanya ditinjau lewat konstruksi kode**, bukan dijalankan, karena datanya belum
+ada saat itu: F-05 langkah 4 beserta panel Ringkasan (butuh program dan harga terisi), dan
+pembatalan closing di `/cs/closing/riwayat` (butuh closing tersimpan). Keduanya akan
+terjawab sendiri begitu data pertama masuk — layak dijadikan bagian dari uji asap setelah
+pindah.
+
+---
+
+## 8. Uji asap setelah pindah
+
+Urutan ini menyentuh setiap lapis yang bisa rusak karena pemindahan, dari luar ke dalam.
+
+```
+1. GET /api/health                      → {"success":true,...,"query_ok":true}
+2. Buka /, belum login                  → dilempar ke /login, CSS dan logo muncul
+3. Login sebagai owner/advertiser       → mendarat di /owner
+4. Dashboard Overview                   → kartu terisi, tidak ada pita error
+5. Tambah satu program + harga          → tersimpan, muncul di daftar
+6. Tambah satu user CS                  → tautan undangan muncul (menguji §6b)
+7. Buka tautan itu di jendela lain      → mengarah ke domain BARU, bukan Vercel
+8. Login sebagai CS, simpan laporan     → tersimpan
+9. Catat satu closing sampai langkah 4  → tersimpan, Ringkasan tampil
+10. Buka /cs/closing/riwayat, batalkan  → bucket di laporan asal pulih (trigger T-1)
+```
+
+Langkah 7 yang menguji jebakan paling halus di §6b. Langkah 9 dan 10 sekaligus menutup dua
+alur yang belum pernah dijalankan sungguhan.
+
+Kalau langkah 4 menampilkan pita error, penyebabnya hampir pasti bukan pemindahan — cek
+`10-AUDIT-FE-BE.md` §22 dan §23, dua kali kejadian itu berasal dari migrasi yang terpasang
+separuh.
