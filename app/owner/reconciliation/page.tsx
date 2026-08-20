@@ -7,6 +7,7 @@ import { Banner } from "@/components/ui/Banner";
 
 interface UnlinkedClosing {
   id: string;
+  cs_id: string;
   first_name: string;
   last_name: string | null;
   closing_date: string;
@@ -17,6 +18,16 @@ interface CsRow {
   id: string;
   full_name: string;
 }
+
+interface LeadReportOption {
+  id: string;
+  report_date: string;
+  cold: number;
+  consultation: number;
+  offering: number;
+}
+
+const PREVIOUS_STAGES = ["cold", "consultation", "offering"] as const;
 
 type Tab = "unlinked" | "missing";
 
@@ -29,6 +40,12 @@ export default function ReconciliationPage() {
   const [missingCs, setMissingCs] = useState<CsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [linkTarget, setLinkTarget] = useState<string | null>(null);
+  const [reportOptions, setReportOptions] = useState<LeadReportOption[]>([]);
+  const [selectedReport, setSelectedReport] = useState("");
+  const [selectedStage, setSelectedStage] = useState<(typeof PREVIOUS_STAGES)[number]>("offering");
+  const [linking, setLinking] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -46,6 +63,33 @@ export default function ReconciliationPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"))
       .finally(() => setLoading(false));
   }, []);
+
+  function openLink(c: UnlinkedClosing) {
+    setLinkTarget(c.id);
+    setSelectedReport("");
+    setSelectedStage("offering");
+    apiFetch<LeadReportOption[]>(`/api/lead-reports?cs=${c.cs_id}&date=${c.lead_date}`)
+      .then(setReportOptions)
+      .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat laporan"));
+  }
+
+  async function confirmLink(closingId: string) {
+    if (!selectedReport) return;
+    setLinking(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/closings/${closingId}/link`, {
+        method: "POST",
+        body: JSON.stringify({ lead_report_id: selectedReport, previous_stage: selectedStage }),
+      });
+      setUnlinked((prev) => prev.filter((c) => c.id !== closingId));
+      setLinkTarget(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menautkan closing");
+    } finally {
+      setLinking(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -78,12 +122,59 @@ export default function ReconciliationPage() {
           )}
           {unlinked.map((c) => (
             <div key={c.id} className="p-4 text-sm">
-              <p className="font-medium text-ink-900">
-                {c.first_name} {c.last_name}
-              </p>
-              <p className="text-xs text-ink-400">
-                Lead {formatDateID(c.lead_date)} · Closing {formatDateID(c.closing_date)}
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-ink-900">
+                    {c.first_name} {c.last_name}
+                  </p>
+                  <p className="text-xs text-ink-400">
+                    Lead {formatDateID(c.lead_date)} · Closing {formatDateID(c.closing_date)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (linkTarget === c.id ? setLinkTarget(null) : openLink(c))}
+                  className="h-9 shrink-0 rounded-lg border border-line px-3 text-sm font-medium text-ink-900"
+                >
+                  Tautkan
+                </button>
+              </div>
+
+              {linkTarget === c.id && (
+                <div className="mt-3 space-y-2 rounded-lg border border-dashed border-line p-3">
+                  <select
+                    value={selectedReport}
+                    onChange={(e) => setSelectedReport(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+                  >
+                    <option value="">Pilih laporan tujuan…</option>
+                    {reportOptions.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {formatDateID(r.report_date)} — cold {r.cold} / consult {r.consultation} / offer {r.offering}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedStage}
+                    onChange={(e) => setSelectedStage(e.target.value as (typeof PREVIOUS_STAGES)[number])}
+                    className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+                  >
+                    {PREVIOUS_STAGES.map((s) => (
+                      <option key={s} value={s}>
+                        Bucket asal: {s}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => confirmLink(c.id)}
+                    disabled={!selectedReport || linking}
+                    className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
+                  >
+                    {linking ? "Menautkan..." : "Konfirmasi tautkan"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
