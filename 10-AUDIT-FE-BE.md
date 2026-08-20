@@ -28,7 +28,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 8 | `saved.reduce()` crash kalau batch balas array kosong | S1 | FE | ✅ `fef30c3` |
 | 9 | `/cs/performa` kirim tanggal `-31` untuk semua bulan | S1 | FE | ✅ `74e1006` |
 | 10 | Tidak ada `GET /api/lead-reports/:id` — koreksi H-7 mustahil | S2 | BE + FE | ⬜ |
-| 11 | Reconciliation tidak punya tombol tautkan | S2 | FE | ⬜ |
+| 11 | Reconciliation tidak punya tombol tautkan | S2 | FE | ✅ `ab2181a` — tombol Tautkan tersambung ke endpoint yang sudah ada |
 | 12 | CS tidak bisa melihat / mengubah / membatalkan closing | S2 | FE | ⬜ |
 | 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ⬜ |
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
