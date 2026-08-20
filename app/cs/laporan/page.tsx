@@ -109,107 +109,112 @@ export default function LaporanHarianPage() {
   }
 
   return (
-    <div className="space-y-5 pb-24">
-      <header>
-        <h1 className="font-display text-xl font-bold text-ink-900">Laporan harian</h1>
+    <div className="pb-24">
+      <header className="flex items-center gap-3 border-b border-line bg-card px-[18px] py-3.5">
+        <button type="button" onClick={() => router.push("/cs")} aria-label="Kembali" className="text-[22px] text-ink-600">
+          ‹
+        </button>
+        <h1 className="flex-1 font-display text-[17px] font-semibold text-ink-900">Laporan harian</h1>
         <input
           type="date"
           value={date}
           max={todayJakarta()}
           onChange={(e) => setDate(e.target.value)}
-          className="mt-2 h-10 rounded-lg border border-line px-3 text-sm"
+          className="h-9 rounded-lg border border-line bg-paper px-2 text-[13px]"
         />
       </header>
 
-      {error && <Banner variant="warn">{error}</Banner>}
-      {saved && <Banner variant="ok">Laporan tersimpan</Banner>}
+      <div className="space-y-4 p-4">
+        {error && <Banner variant="warn">{error}</Banner>}
+        {saved && <Banner variant="ok">Laporan tersimpan</Banner>}
 
-      <div className="space-y-4">
-        {blocks.map((block, i) => {
-          const sisa = block.total_lead - (block.cold + block.consultation + block.offering);
-          return (
-            <div key={i} className="rounded-[10px] border border-line bg-card p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <select
-                  value={block.source_id}
-                  onChange={(e) => updateBlock(i, { source_id: e.target.value })}
-                  className="h-10 rounded-lg border border-line px-2 text-sm font-medium"
-                >
-                  {sources.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                {blocks.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeBlock(i)}
-                    className="text-xs text-danger"
+        <div className="space-y-4">
+          {blocks.map((block, i) => {
+            const sisa = block.total_lead - (block.cold + block.consultation + block.offering);
+            return (
+              <div key={i} className="rounded-[10px] border border-line bg-card p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <select
+                    value={block.source_id}
+                    onChange={(e) => updateBlock(i, { source_id: e.target.value })}
+                    className="h-10 rounded-lg border border-line px-2 text-sm font-semibold"
                   >
-                    Hapus
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <NumberStepper
-                  label="Total Lead"
-                  value={block.total_lead}
-                  onChange={(v) => updateBlock(i, { total_lead: v })}
-                />
-                <NumberStepper
-                  label="Cold"
-                  value={block.cold}
-                  onChange={(v) => updateBlock(i, { cold: v })}
-                />
-                <NumberStepper
-                  label="Consultation"
-                  value={block.consultation}
-                  onChange={(v) => updateBlock(i, { consultation: v })}
-                />
-                <NumberStepper
-                  label="Offering"
-                  value={block.offering}
-                  onChange={(v) => updateBlock(i, { offering: v })}
-                />
-              </div>
-
-              <div className="mt-3">
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="text-ink-400">Closing: otomatis dari data closing</span>
-                  <span className={sisa === 0 ? "font-mono text-ok" : "font-mono text-warn"}>
-                    Sisa belum dikategorikan: {sisa}
-                  </span>
+                    {sources.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {blocks.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeBlock(i)}
+                      className="text-xs text-danger"
+                    >
+                      Hapus
+                    </button>
+                  )}
                 </div>
-                <StageRail
-                  size="medium"
-                  withNumbers
-                  segments={[
-                    { stage: "cold", value: block.cold },
-                    { stage: "consultation", value: block.consultation },
-                    { stage: "offering", value: block.offering },
-                  ]}
-                />
+
+                <div className="space-y-2.5">
+                  <NumberStepper
+                    label="Total Lead"
+                    value={block.total_lead}
+                    onChange={(v) => updateBlock(i, { total_lead: v })}
+                  />
+                  <NumberStepper
+                    label="Cold"
+                    value={block.cold}
+                    onChange={(v) => updateBlock(i, { cold: v })}
+                  />
+                  <NumberStepper
+                    label="Consultation"
+                    value={block.consultation}
+                    onChange={(v) => updateBlock(i, { consultation: v })}
+                  />
+                  <NumberStepper
+                    label="Offering"
+                    value={block.offering}
+                    onChange={(v) => updateBlock(i, { offering: v })}
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <StageRail
+                    size="medium"
+                    withNumbers
+                    segments={[
+                      { stage: "cold", value: block.cold },
+                      { stage: "consultation", value: block.consultation },
+                      { stage: "offering", value: block.offering },
+                    ]}
+                  />
+                  <div
+                    className={`mt-3 flex items-center gap-1.5 text-[13px] ${sisa === 0 ? "text-ok" : "text-warn-ink"}`}
+                  >
+                    <span className={`h-[7px] w-[7px] rounded-full ${sisa === 0 ? "bg-ok" : "bg-warn"}`} />
+                    {sisa === 0 ? "Semua lead sudah dikategorikan" : `Sisa belum dikategorikan: ${sisa}`}
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={addBlock}
+          className="h-[46px] w-full rounded-lg border border-dashed border-ink-400 text-[15px] font-medium text-ink-600"
+        >
+          + Tambah source
+        </button>
       </div>
 
-      <button
-        type="button"
-        onClick={addBlock}
-        className="h-11 w-full rounded-lg border border-dashed border-line text-sm font-medium text-ink-600"
-      >
-        + Tambah source
-      </button>
-
-      <div className="fixed bottom-16 left-0 right-0 border-t border-line bg-card px-4 py-3 shadow-lg">
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
-          <div>
-            <p className="text-xs text-ink-400">Total lead</p>
-            <p className="font-mono text-lg font-semibold text-ink-900">{grandTotal}</p>
+      <div className="fixed bottom-16 left-0 right-0 border-t border-line bg-card px-[18px] py-3.5 shadow-lg">
+        <div className="mx-auto flex max-w-lg items-center gap-3.5">
+          <div className="flex-1">
+            <p className="text-[11px] text-ink-400">Total lead</p>
+            <p className="font-mono text-xl font-semibold text-ink-900">{grandTotal}</p>
           </div>
           <button
             type="button"
@@ -219,7 +224,7 @@ export default function LaporanHarianPage() {
               blocks.length === 0 ||
               blocks.some((b) => b.total_lead - (b.cold + b.consultation + b.offering) !== 0)
             }
-            className="h-12 flex-1 rounded-lg bg-brass text-base font-semibold text-navy-900 disabled:opacity-50"
+            className="h-[50px] rounded-lg bg-brass px-[22px] text-base font-semibold text-on-brass disabled:opacity-50"
           >
             {submitting ? "Menyimpan..." : "Simpan laporan"}
           </button>

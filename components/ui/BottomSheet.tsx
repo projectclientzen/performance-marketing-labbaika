@@ -35,7 +35,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         type="button"
         aria-label="Tutup"
         onClick={onClose}
-        className="absolute inset-0 bg-navy-900/50"
+        className="absolute inset-0 bg-black/50"
       />
       <div
         ref={sheetRef}
@@ -43,7 +43,7 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card p-5 shadow-xl outline-none"
+        className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-[20px] bg-paper px-[18px] pb-6 pt-5 shadow-xl outline-none"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
         {title && <h2 className="mb-3 font-display text-lg font-bold text-ink-900">{title}</h2>}

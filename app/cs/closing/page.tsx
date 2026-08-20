@@ -149,35 +149,48 @@ export default function ClosingFormPage() {
   }
 
   return (
-    <div className="space-y-5 pb-6">
-      <h1 className="font-display text-xl font-bold text-ink-900">Catat closing</h1>
-      {error && <Banner variant="danger">{error}</Banner>}
+    <div className="pb-6">
+      <header className="flex items-center gap-3 border-b border-line bg-card px-[18px] py-3.5">
+        <button type="button" onClick={() => router.push("/cs")} aria-label="Kembali" className="text-[22px] text-ink-600">
+          ‹
+        </button>
+        <h1 className="font-display text-[17px] font-semibold text-ink-900">Catat closing</h1>
+      </header>
 
-      {conflict && (
-        <div className="rounded-[10px] border border-warn/40 bg-warn/10 p-4">
-          <p className="text-sm font-medium text-ink-900">
-            Nomor ini sudah dicatat closing oleh {conflict.cs_name}, {conflict.closing_date}, {conflict.program_name}.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setConflict(null)}
-              className="h-10 flex-1 rounded-lg border border-line text-sm font-medium"
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              onClick={() => submit(true)}
-              className="h-10 flex-1 rounded-lg bg-danger text-sm font-medium text-white"
-            >
-              Tetap simpan
-            </button>
+      <div className="space-y-5 p-4">
+        {error && <Banner variant="danger">{error}</Banner>}
+
+        {conflict && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6">
+            <div className="w-full max-w-sm rounded-[14px] bg-paper p-6">
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-danger-lo text-[22px] text-warn">
+                !
+              </div>
+              <h2 className="font-display text-[19px] font-semibold text-ink-900">Nomor sudah dicatat</h2>
+              <p className="mt-2.5 text-sm leading-relaxed text-ink-600">
+                Nomor ini sudah dicatat closing oleh <b>{conflict.cs_name}</b>, {conflict.closing_date}, {conflict.program_name}.
+              </p>
+              <div className="mt-[22px] flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setConflict(null)}
+                  className="h-[50px] rounded-lg border border-line bg-card text-[15px] font-medium text-ink-900"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => submit(true)}
+                  className="h-[50px] rounded-lg bg-navy-900 text-sm font-semibold text-white"
+                >
+                  Tetap simpan, butuh persetujuan Owner
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
+        <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
         <h2 className="text-sm font-semibold text-ink-600">Customer</h2>
         <input
           placeholder="Nama depan"
@@ -379,14 +392,15 @@ export default function ClosingFormPage() {
         />
       </section>
 
-      <button
-        type="button"
-        onClick={() => submit(false)}
-        disabled={submitting}
-        className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-navy-900 disabled:opacity-50"
-      >
-        {submitting ? "Menyimpan..." : "Simpan closing"}
-      </button>
+        <button
+          type="button"
+          onClick={() => submit(false)}
+          disabled={submitting}
+          className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
+        >
+          {submitting ? "Menyimpan..." : "Simpan closing"}
+        </button>
+      </div>
     </div>
   );
 }

@@ -41,58 +41,67 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-navy-900 px-4">
-      <div className="w-full max-w-sm rounded-[10px] bg-card p-8 shadow-lg">
-        <Image src="/logo/labbaika-full.png" alt="Labbaika" width={140} height={140} className="mx-auto" priority />
-        <p className="mt-3 text-center text-sm text-ink-600">Masuk untuk lanjut ke laporan harian</p>
+    <main
+      className="flex min-h-screen flex-col justify-center px-7 py-8"
+      style={{ background: "radial-gradient(120% 80% at 50% 0%, #0E5570 0%, var(--color-navy-900) 60%)" }}
+    >
+      {/* Gradient highlight (#0E5570) is F-01-only per prototype, not a
+          reusable token — reported to -09, treated as a one-off per her
+          go-ahead to stop waiting on single-screen colors. */}
+      <div className="mx-auto mb-7 flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-[28px] bg-card shadow-lg">
+        <Image src="/logo/labbaika-full.png" alt="Labbaika" width={120} height={120} className="h-full w-full object-cover" priority />
+      </div>
+      <h1 className="font-display text-[28px] font-bold tracking-tight text-white">Masuk</h1>
+      <p className="mb-7 mt-1.5 text-sm text-on-dark-muted">Laporan harian Labbaika Group</p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink-600">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-11 w-full rounded-lg border border-line px-3 text-base focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink-600">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-11 w-full rounded-lg border border-line px-3 text-base focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="email" className="text-[13px] text-on-dark">
+            Email
+          </label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1.5 h-12 w-full rounded-lg border border-navy-700 bg-navy-800 px-3.5 text-base text-white focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
+          />
+        </div>
+        <div>
+          <label htmlFor="password" className="text-[13px] text-on-dark">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1.5 h-12 w-full rounded-lg border border-navy-700 bg-navy-800 px-3.5 text-base text-white focus:border-brass focus:outline-none focus:ring-2 focus:ring-brass/30"
+          />
+        </div>
 
-          {error && (
-            <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
-            </p>
-          )}
+        {error && (
+          <p role="alert" className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            {error}
+          </p>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-navy-900 transition-opacity disabled:opacity-50"
-          >
-            {loading ? "Memproses..." : "Masuk"}
-          </button>
-        </form>
-
-        <a href="#" className="mt-4 block text-center text-sm text-blue">
+        <a href="#" className="block text-[13px] text-on-dark-muted">
           Lupa password
         </a>
-      </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="h-[52px] w-full rounded-lg bg-brass text-base font-semibold text-on-brass transition-opacity disabled:opacity-50"
+        >
+          {loading ? "Memproses..." : "Masuk"}
+        </button>
+      </form>
+
+      <p className="mt-8 text-center text-xs text-on-dark-faint">Labbaika Group · v1.1</p>
     </main>
   );
 }

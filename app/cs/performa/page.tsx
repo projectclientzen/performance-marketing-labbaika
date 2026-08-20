@@ -32,9 +32,11 @@ export default function CsPerformaPage() {
   const reportDays = new Set(reports.map((r) => r.report_date)).size;
 
   return (
-    <div className="space-y-5">
-      <h1 className="font-display text-xl font-bold text-ink-900">Performa saya</h1>
-      <div className="grid grid-cols-2 gap-3">
+    <div>
+      <header className="border-b border-line bg-card px-[18px] py-3.5">
+        <h1 className="font-display text-[17px] font-semibold text-ink-900">Performa saya</h1>
+      </header>
+      <div className="grid grid-cols-2 gap-3 p-4">
         <MetricCard label="Total lead bulan ini" value={String(totalLead)} loading={loading} />
         <MetricCard label="Total closing" value={String(totalClosing)} loading={loading} />
         <MetricCard label="Closing rate" value={closingRate} variant="accent" loading={loading} />

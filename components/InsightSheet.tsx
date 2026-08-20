@@ -65,7 +65,7 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Tambah insight? (opsional)">
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3.5 flex gap-1 rounded-full border border-line bg-card p-1">
         {(["consultation", "offering"] as Stage[]).map((s) => (
           <button
             key={s}
@@ -73,8 +73,8 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
             onClick={() => setTab(s)}
             className={
               tab === s
-                ? "rounded-full bg-navy-900 px-3 py-1.5 text-sm text-text-light"
-                : "rounded-full border border-line px-3 py-1.5 text-sm text-ink-600"
+                ? "h-[38px] flex-1 rounded-full bg-navy-900 text-sm font-medium text-white"
+                : "h-[38px] flex-1 rounded-full text-sm font-medium text-ink-600"
             }
           >
             {s === "consultation" ? "Consultation" : "Offering"}
@@ -113,7 +113,7 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="h-11 flex-1 rounded-lg bg-brass text-sm font-semibold text-navy-900 disabled:opacity-50"
+          className="h-11 flex-1 rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : "Simpan insight"}
         </button>
