@@ -43,8 +43,47 @@ interface DuplicateConflict {
   program_name: string;
 }
 
+// F-05: 4 steps, matching the prototype's sidebar (desktop) / progress bar
+// (mobile) exactly. Every field that existed in the old single-page form is
+// still here, just grouped under the step it already belonged to (the four
+// <section> groups mapped 1:1 onto the prototype's step names).
+const STEPS = ["Customer", "Lead", "Paket", "Lokasi & review"] as const;
+
+// Maps a server VALIDATION_ERROR field name back to the step that owns it,
+// so a rejection on a field from an earlier step doesn't strand the cs on
+// step 4 with an error that points at nothing visible (Opus's review of
+// this file, 20 Agustus 2026).
+const FIELD_STEP: Record<string, number> = {
+  first_name: 0,
+  last_name: 0,
+  whatsapp: 0,
+  email: 0,
+  pdp_consent: 0,
+  pdp_consent_at: 0,
+  lead_date: 1,
+  source_id: 1,
+  previous_stage: 1,
+  program_id: 2,
+  departure_id: 2,
+  room_type: 2,
+  pax: 2,
+  price_at_transaction: 2,
+  total_value: 2,
+  price_note: 2,
+  payment_status: 2,
+  paid_amount: 2,
+  is_price_override: 2,
+  province_id: 3,
+  city_id: 3,
+  closing_date: 3,
+};
+
+const inputClass = "mt-1.5 h-[46px] w-full rounded-lg border border-line px-3 text-[15px]";
+const labelClass = "text-[13px] text-ink-600";
+
 export default function ClosingFormPage() {
   const router = useRouter();
+  const [step, setStep] = useState(0);
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -52,6 +91,7 @@ export default function ClosingFormPage() {
   const [priceOverride, setPriceOverride] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [conflict, setConflict] = useState<DuplicateConflict | null>(null);
 
   const [form, setForm] = useState({
@@ -118,10 +158,29 @@ export default function ClosingFormPage() {
 
   const provinces = regions.filter((r) => r.level === "province");
   const cities = regions.filter((r) => r.level === "city" && r.parent_id === form.province_id);
+  const selectedProgram = programs.find((p) => p.id === form.program_id);
+
+  // Navigation gate only -- which fields must be filled to move forward.
+  // Not a validation rule: the real rules stay in closingSchema and the
+  // database, and the final submit still validates the whole payload as-is
+  // regardless of how the cs got here.
+  const stepIncomplete = [
+    !form.first_name || !form.whatsapp,
+    !form.source_id,
+    !form.program_id || !form.departure_id,
+    false,
+  ][step];
+
+  function goStep(next: number) {
+    setFieldErrors({});
+    setError(null);
+    setStep(next);
+  }
 
   async function submit(force = false) {
     setSubmitting(true);
     setError(null);
+    setFieldErrors({});
     setConflict(null);
     try {
       const data = await apiFetch<{ id: string }>("/api/closings", {
@@ -140,6 +199,11 @@ export default function ClosingFormPage() {
       // lib/api/client.ts).
       if (e instanceof ApiError && e.code === "DUPLICATE_CONFLICT" && e.fields) {
         setConflict(e.fields as unknown as DuplicateConflict);
+      } else if (e instanceof ApiError && e.code === "VALIDATION_ERROR" && e.fields) {
+        setFieldErrors(e.fields);
+        const offendingSteps = Object.keys(e.fields).map((k) => FIELD_STEP[k] ?? step);
+        setStep(Math.min(...offendingSteps, step));
+        setError(e.message);
       } else {
         setError(e instanceof Error ? e.message : "Gagal menyimpan");
       }
@@ -150,11 +214,26 @@ export default function ClosingFormPage() {
 
   return (
     <div className="pb-6">
-      <header className="flex items-center gap-3 border-b border-line bg-card px-[18px] py-3.5">
-        <button type="button" onClick={() => router.push("/cs")} aria-label="Kembali" className="text-[22px] text-ink-600">
-          ‹
-        </button>
-        <h1 className="font-display text-[17px] font-semibold text-ink-900">Catat closing</h1>
+      <header className="border-b border-line bg-card px-[18px] py-3.5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => (step === 0 ? router.push("/cs") : goStep(step - 1))}
+            aria-label="Kembali"
+            className="text-[22px] text-ink-600"
+          >
+            ‹
+          </button>
+          <h1 className="font-display text-[17px] font-semibold text-ink-900">Catat closing</h1>
+        </div>
+        <div className="mt-3.5 flex gap-2">
+          {STEPS.map((_, i) => (
+            <div key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-brass" : "bg-line"}`} />
+          ))}
+        </div>
+        <p className="mt-2 font-mono text-xs text-ink-400">
+          Langkah {step + 1} dari {STEPS.length} · {STEPS[step]}
+        </p>
       </header>
 
       <div className="space-y-5 p-4">
@@ -190,216 +269,296 @@ export default function ClosingFormPage() {
           </div>
         )}
 
-        <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
-        <h2 className="text-sm font-semibold text-ink-600">Customer</h2>
-        <input
-          placeholder="Nama depan"
-          value={form.first_name}
-          onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-        <input
-          placeholder="Nama belakang (opsional)"
-          value={form.last_name}
-          onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-        <input
-          placeholder="WhatsApp (08...)"
-          inputMode="numeric"
-          value={form.whatsapp}
-          onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-        <input
-          placeholder="Email (opsional)"
-          value={form.email}
-          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-        <label className="flex items-center gap-2 text-sm text-ink-600">
-          <input
-            type="checkbox"
-            checked={form.pdp_consent}
-            onChange={(e) => setForm((f) => ({ ...f, pdp_consent: e.target.checked }))}
-          />
-          Jamaah setuju datanya dipakai untuk keperluan pemasaran (PDP)
-        </label>
-      </section>
+        {step === 0 && (
+          <section className="space-y-3.5 rounded-[10px] border border-line bg-card p-4">
+            <div>
+              <label className={labelClass}>Nama depan</label>
+              <input
+                value={form.first_name}
+                onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+                className={inputClass}
+              />
+              {fieldErrors.first_name && <p className="mt-1 text-xs text-danger">{fieldErrors.first_name}</p>}
+            </div>
+            <div>
+              <label className={labelClass}>Nama belakang</label>
+              <input
+                placeholder="(opsional)"
+                value={form.last_name}
+                onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>WhatsApp</label>
+              <input
+                placeholder="08..."
+                inputMode="numeric"
+                value={form.whatsapp}
+                onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                className={inputClass}
+              />
+              {fieldErrors.whatsapp && <p className="mt-1 text-xs text-danger">{fieldErrors.whatsapp}</p>}
+            </div>
+            <div>
+              <label className={labelClass}>Email</label>
+              <input
+                placeholder="(opsional)"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
+              />
+              {fieldErrors.email && <p className="mt-1 text-xs text-danger">{fieldErrors.email}</p>}
+            </div>
+            <label className="flex items-center gap-2 text-sm text-ink-600">
+              <input
+                type="checkbox"
+                checked={form.pdp_consent}
+                onChange={(e) => setForm((f) => ({ ...f, pdp_consent: e.target.checked }))}
+              />
+              Jamaah setuju datanya dipakai untuk keperluan pemasaran (PDP)
+            </label>
+          </section>
+        )}
 
-      <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
-        <h2 className="text-sm font-semibold text-ink-600">Lead</h2>
-        <input
-          type="date"
-          value={form.lead_date}
-          onChange={(e) => setForm((f) => ({ ...f, lead_date: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-        <select
-          value={form.source_id}
-          onChange={(e) => setForm((f) => ({ ...f, source_id: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <div>
-          <p className="mb-1 text-xs text-ink-400">Sebelum closing, lead ini ada di stage mana?</p>
-          <select
-            value={form.previous_stage}
-            onChange={(e) => setForm((f) => ({ ...f, previous_stage: e.target.value as typeof f.previous_stage }))}
-            className="h-11 w-full rounded-lg border border-line px-3"
-          >
-            <option value="cold">Cold</option>
-            <option value="consultation">Consultation</option>
-            <option value="offering">Offering</option>
-          </select>
-        </div>
-      </section>
+        {step === 1 && (
+          <section className="space-y-3.5 rounded-[10px] border border-line bg-card p-4">
+            <div>
+              <label className={labelClass}>Tanggal lead</label>
+              <input
+                type="date"
+                value={form.lead_date}
+                onChange={(e) => setForm((f) => ({ ...f, lead_date: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Sumber lead</label>
+              <select
+                value={form.source_id}
+                onChange={(e) => setForm((f) => ({ ...f, source_id: e.target.value }))}
+                className={inputClass}
+              >
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Sebelum closing, lead ini ada di stage mana?</label>
+              <select
+                value={form.previous_stage}
+                onChange={(e) => setForm((f) => ({ ...f, previous_stage: e.target.value as typeof f.previous_stage }))}
+                className={inputClass}
+              >
+                <option value="cold">Cold</option>
+                <option value="consultation">Consultation</option>
+                <option value="offering">Offering</option>
+              </select>
+            </div>
+          </section>
+        )}
 
-      <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
-        <h2 className="text-sm font-semibold text-ink-600">Paket</h2>
-        <select
-          value={form.program_id}
-          onChange={(e) => setForm((f) => ({ ...f, program_id: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          {programs.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={form.departure_id}
-          onChange={(e) => setForm((f) => ({ ...f, departure_id: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          {departures.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.departure_date}
-            </option>
-          ))}
-        </select>
-        <select
-          value={form.room_type}
-          onChange={(e) => setForm((f) => ({ ...f, room_type: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          {ROOM_TYPES.map((r) => (
-            <option key={r.value} value={r.value}>
-              {r.label}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min={1}
-          value={form.pax}
-          onChange={(e) => {
-            const pax = parseInt(e.target.value, 10) || 1;
-            setForm((f) => ({ ...f, pax, total_value: f.price_at_transaction * pax }));
-          }}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
+        {step === 2 && (
+          <section className="space-y-3.5 rounded-[10px] border border-line bg-card p-4">
+            <div>
+              <label className={labelClass}>Program</label>
+              <select
+                value={form.program_id}
+                onChange={(e) => setForm((f) => ({ ...f, program_id: e.target.value }))}
+                className={inputClass}
+              >
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Keberangkatan</label>
+              <select
+                value={form.departure_id}
+                onChange={(e) => setForm((f) => ({ ...f, departure_id: e.target.value }))}
+                className={inputClass}
+              >
+                {departures.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.departure_date}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Tipe kamar</label>
+              <select
+                value={form.room_type}
+                onChange={(e) => setForm((f) => ({ ...f, room_type: e.target.value }))}
+                className={inputClass}
+              >
+                {ROOM_TYPES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Jumlah pax</label>
+              <input
+                type="number"
+                min={1}
+                value={form.pax}
+                onChange={(e) => {
+                  const pax = parseInt(e.target.value, 10) || 1;
+                  setForm((f) => ({ ...f, pax, total_value: f.price_at_transaction * pax }));
+                }}
+                className={inputClass}
+              />
+            </div>
 
-        <label className="flex items-center gap-2 text-sm text-ink-600">
-          <input
-            type="checkbox"
-            checked={priceOverride}
-            onChange={(e) => setPriceOverride(e.target.checked)}
-          />
-          Harga khusus (isi manual)
-        </label>
+            <label className="flex items-center gap-2 text-sm text-ink-600">
+              <input type="checkbox" checked={priceOverride} onChange={(e) => setPriceOverride(e.target.checked)} />
+              Harga khusus (isi manual)
+            </label>
 
-        {priceOverride ? (
+            {priceOverride ? (
+              <>
+                <div>
+                  <label className={labelClass}>Harga per pax</label>
+                  <input
+                    type="number"
+                    value={form.price_at_transaction}
+                    onChange={(e) => {
+                      const price = parseInt(e.target.value, 10) || 0;
+                      setForm((f) => ({ ...f, price_at_transaction: price, total_value: price * f.pax }));
+                    }}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Catatan harga khusus</label>
+                  <input
+                    value={form.price_note}
+                    onChange={(e) => setForm((f) => ({ ...f, price_note: e.target.value }))}
+                    className={inputClass}
+                  />
+                  {fieldErrors.price_note && <p className="mt-1 text-xs text-danger">{fieldErrors.price_note}</p>}
+                </div>
+              </>
+            ) : null}
+
+            <p className="font-mono text-2xl font-semibold text-ink-900">{formatRupiah(form.total_value)}</p>
+
+            <div>
+              <label className={labelClass}>Status pembayaran</label>
+              <select
+                value={form.payment_status}
+                onChange={(e) => setForm((f) => ({ ...f, payment_status: e.target.value as typeof f.payment_status }))}
+                className={inputClass}
+              >
+                <option value="dp">DP</option>
+                <option value="partial">Cicilan</option>
+                <option value="lunas">Lunas</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Jumlah dibayar</label>
+              <input
+                type="number"
+                value={form.paid_amount}
+                onChange={(e) => setForm((f) => ({ ...f, paid_amount: parseInt(e.target.value, 10) || 0 }))}
+                className={inputClass}
+              />
+              {fieldErrors.paid_amount && <p className="mt-1 text-xs text-danger">{fieldErrors.paid_amount}</p>}
+            </div>
+          </section>
+        )}
+
+        {step === 3 && (
           <>
-            <input
-              type="number"
-              placeholder="Harga per pax"
-              value={form.price_at_transaction}
-              onChange={(e) => {
-                const price = parseInt(e.target.value, 10) || 0;
-                setForm((f) => ({ ...f, price_at_transaction: price, total_value: price * f.pax }));
-              }}
-              className="h-11 w-full rounded-lg border border-line px-3"
-            />
-            <input
-              placeholder="Catatan harga khusus"
-              value={form.price_note}
-              onChange={(e) => setForm((f) => ({ ...f, price_note: e.target.value }))}
-              className="h-11 w-full rounded-lg border border-line px-3"
-            />
+            <section className="space-y-3.5 rounded-[10px] border border-line bg-card p-4">
+              <div>
+                <label className={labelClass}>Provinsi</label>
+                <select
+                  value={form.province_id}
+                  onChange={(e) => setForm((f) => ({ ...f, province_id: e.target.value, city_id: "" }))}
+                  className={inputClass}
+                >
+                  <option value="">Pilih provinsi</option>
+                  {provinces.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Kota</label>
+                <select
+                  value={form.city_id}
+                  onChange={(e) => setForm((f) => ({ ...f, city_id: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">Pilih kota</option>
+                  {cities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Tanggal closing</label>
+                <input
+                  type="date"
+                  value={form.closing_date}
+                  onChange={(e) => setForm((f) => ({ ...f, closing_date: e.target.value }))}
+                  className={inputClass}
+                />
+                {fieldErrors.closing_date && <p className="mt-1 text-xs text-danger">{fieldErrors.closing_date}</p>}
+              </div>
+            </section>
+
+            <section className="rounded-[10px] border border-line bg-card p-4">
+              <h2 className="mb-3 text-[13px] font-semibold text-ink-900">Ringkasan</h2>
+              {[
+                ["Nama", `${form.first_name} ${form.last_name}`.trim()],
+                ["WhatsApp", form.whatsapp],
+                ["Program", selectedProgram?.name ?? "-"],
+                ["Pax", String(form.pax)],
+                ["Total", formatRupiah(form.total_value)],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between border-b border-paper py-1.5 text-[13px] last:border-0">
+                  <span className="text-ink-400">{label}</span>
+                  <span className="font-mono text-ink-900">{value}</span>
+                </div>
+              ))}
+            </section>
           </>
-        ) : null}
+        )}
 
-        <p className="font-mono text-2xl font-semibold text-ink-900">
-          {formatRupiah(form.total_value)}
-        </p>
-
-        <select
-          value={form.payment_status}
-          onChange={(e) => setForm((f) => ({ ...f, payment_status: e.target.value as typeof f.payment_status }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          <option value="dp">DP</option>
-          <option value="partial">Cicilan</option>
-          <option value="lunas">Lunas</option>
-        </select>
-        <input
-          type="number"
-          placeholder="Jumlah dibayar"
-          value={form.paid_amount}
-          onChange={(e) => setForm((f) => ({ ...f, paid_amount: parseInt(e.target.value, 10) || 0 }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-      </section>
-
-      <section className="space-y-3 rounded-[10px] border border-line bg-card p-4">
-        <h2 className="text-sm font-semibold text-ink-600">Lokasi</h2>
-        <select
-          value={form.province_id}
-          onChange={(e) => setForm((f) => ({ ...f, province_id: e.target.value, city_id: "" }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          <option value="">Pilih provinsi</option>
-          {provinces.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={form.city_id}
-          onChange={(e) => setForm((f) => ({ ...f, city_id: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        >
-          <option value="">Pilih kota</option>
-          {cities.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={form.closing_date}
-          onChange={(e) => setForm((f) => ({ ...f, closing_date: e.target.value }))}
-          className="h-11 w-full rounded-lg border border-line px-3"
-        />
-      </section>
-
-        <button
-          type="button"
-          onClick={() => submit(false)}
-          disabled={submitting}
-          className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
-        >
-          {submitting ? "Menyimpan..." : "Simpan closing"}
-        </button>
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            onClick={() => goStep(step + 1)}
+            disabled={stepIncomplete}
+            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
+          >
+            Lanjut
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => submit(false)}
+            disabled={submitting}
+            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
+          >
+            {submitting ? "Menyimpan..." : "Simpan closing"}
+          </button>
+        )}
       </div>
     </div>
   );
