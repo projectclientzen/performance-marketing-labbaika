@@ -30,9 +30,10 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 10 | Tidak ada `GET /api/lead-reports/:id` — koreksi H-7 mustahil | S2 | BE + FE | ⬜ |
 | 11 | Reconciliation tidak punya tombol tautkan | S2 | FE | ✅ `ab2181a` — tombol Tautkan tersambung ke endpoint yang sudah ada |
 | 12 | CS tidak bisa melihat / mengubah / membatalkan closing | S2 | FE | ⬜ |
+| 25 | **Keputusan produk 20 Agu: CPP/ROI per-CS dibatalkan, nomor WA CS ditambahkan** | lingkup | — | 📌 tercatat |
 | 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ⬜ |
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
-| 15 | Tidak ada cara menambah user baru | S2 | BE | ⬜ |
+| 15 | Tidak ada cara menambah user baru | S2 | BE | 🔄 dibuka keputusan Maszen — form tambah CS (nama/WA/email) sedang dibangun `-23` |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
 | **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
@@ -1064,3 +1065,48 @@ Efek sampingan yang berguna: menjalankan urutan CI secara lokal langsung memuncu
 kosmetik di `tests/sql/018` — notice-nya mencetak `pct_of_filled=83.33333333333333333300.1f%`
 karena `raise` di plpgsql mengenal `%` tapi tidak `%.1f`. Persis jenis hal yang tidak akan
 pernah ketahuan selama tidak ada yang menjalankannya.
+
+
+---
+
+## 25. Keputusan produk — 20 Agustus
+
+Dua pertanyaan yang menahan pekerjaan F-09 dan F-13 dijawab Maszen. Dicatat di sini karena
+keduanya mengubah lingkup, bukan sekadar memilih di antara dua cara mengerjakan.
+
+### CPP dan ROI per-CS — dibatalkan
+
+> "gaperlu pake data general aja"
+
+F-09 CS Performance tetap memakai angka umum. Tidak ada alokasi spend ke masing-masing CS.
+
+Ini menutup pertanyaan yang sempat terbuka: `ad_performance` mencatat spend per campaign,
+bukan per orang, jadi memecahnya ke CS butuh aturan pembagian yang harus diputuskan, bukan
+dihitung. Jawabannya ternyata tidak perlu diputuskan sama sekali — angkanya memang tidak
+dibutuhkan.
+
+### Nomor WhatsApp CS — ditambahkan
+
+> "ini skemanya ambil dari closingan per cs, nanti untuk input add user cs ada kolom nama
+> cs, nomor wa cs, sama email"
+
+Dua akibat:
+
+1. Export Gass Apps (F-13) mengambil baris dari `closings`, dikelompokkan per CS, dengan
+   nomor WA CS di tiap baris.
+2. `app_users` perlu kolom `whatsapp`, dan form tambah pengguna perlu tiga isian: nama,
+   nomor WA, email.
+
+Bagian kedua sekaligus membuka **temuan #15** yang menganggur sejak audit — `/api/users`
+tidak punya `POST`, sehingga pengguna pertama harus dibuat manual lewat dashboard Supabase.
+
+Batasan yang ditetapkan untuk pengerjaannya:
+
+- Kolom email **tidak** ditambahkan ke `app_users`. Email sudah hidup di `auth.users` dan
+  jalur pengambilannya dibangun di `047865c`. Dua sumber kebenaran untuk satu nilai adalah
+  cara memastikan keduanya berbeda dalam sebulan.
+- Nomor disimpan dalam E.164 memakai `normalizePhoneID` (`lib/utils/phone.ts`) yang sudah
+  ada dan sudah punya 12 test — fungsi yang sama dipakai trigger closing, jadi formatnya
+  konsisten di seluruh sistem.
+- `POST /api/users` memakai service role **hanya** untuk membuat identitas auth. Insert ke
+  `app_users` tetap lewat klien pemanggil supaya RLS yang menentukan `brand_id`-nya.
