@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   // would surface as a Postgres enum error mid-stream, which (see below)
   // reads to the client as a truncated-but-successful CSV. Reject up front
   // instead.
-  if (status !== undefined && !(status in PAYMENT_STATUS)) {
+  if (status !== undefined && !Object.hasOwn(PAYMENT_STATUS, status)) {
     return Response.json(fail("VALIDATION_ERROR", "status tidak valid", { status }), {
       status: httpStatus("VALIDATION_ERROR"),
     });
