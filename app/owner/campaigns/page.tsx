@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
-import { formatPercent, formatROI } from "@/lib/utils/percent";
+import { formatPercent, formatROI, formatMultiple } from "@/lib/utils/percent";
 import { todayJakarta } from "@/lib/utils/date";
 import { Banner } from "@/components/ui/Banner";
 
@@ -17,10 +17,11 @@ interface CampaignRow {
   reached_offering: number;
   closing: number;
   closing_rate: number | null;
-  gross_profit: number;
+  gross_booking_value: number;
   cpp: number | null;
   breakeven_cpp: number | null;
   roi: number | null;
+  roas: number | null;
 }
 
 export default function CampaignQualityPage() {
@@ -53,10 +54,11 @@ export default function CampaignQualityPage() {
               <th className="p-3 text-right">CPL</th>
               <th className="p-3 text-right">Closing</th>
               <th className="p-3 text-right">Closing Rate</th>
-              <th className="p-3 text-right">Gross Profit</th>
+              <th className="p-3 text-right">Omset</th>
               <th className="p-3 text-right">CPP</th>
               <th className="p-3 text-right">Break-even CPP</th>
               <th className="p-3 text-right">ROI</th>
+              <th className="p-3 text-right">ROAS</th>
             </tr>
           </thead>
           <tbody className="font-mono">
@@ -68,10 +70,11 @@ export default function CampaignQualityPage() {
                 <td className="p-3 text-right">{r.cpl_meta ? formatRupiah(Math.round(r.cpl_meta)) : "-"}</td>
                 <td className="p-3 text-right">{r.closing}</td>
                 <td className="p-3 text-right">{formatPercent(r.closing_rate)}</td>
-                <td className="p-3 text-right">{formatRupiah(r.gross_profit)}</td>
+                <td className="p-3 text-right">{formatRupiah(r.gross_booking_value)}</td>
                 <td className="p-3 text-right">{r.cpp ? formatRupiah(Math.round(r.cpp)) : "-"}</td>
                 <td className="p-3 text-right">{r.breakeven_cpp ? formatRupiah(Math.round(r.breakeven_cpp)) : "-"}</td>
                 <td className="p-3 text-right font-semibold text-brass">{formatROI(r.roi)}</td>
+                <td className="p-3 text-right">{formatMultiple(r.roas)}</td>
               </tr>
             ))}
           </tbody>
