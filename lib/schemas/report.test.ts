@@ -24,6 +24,11 @@ describe('DS-13 lead report schema', () => {
     expect(r.success).toBe(false);
   });
 
+  it('jumlah stage kurang dari total_lead (sisa belum dikategorikan) ditolak (10-AUDIT-FE-BE.md #7)', () => {
+    const r = leadReportBlockSchema.safeParse({ ...validBlock, total_lead: 15 });
+    expect(r.success).toBe(false);
+  });
+
   it('angka negatif / pecahan / bukan angka ditolak', () => {
     expect(leadReportBlockSchema.safeParse({ ...validBlock, cold: -1 }).success).toBe(false);
     expect(leadReportBlockSchema.safeParse({ ...validBlock, cold: 1.5 }).success).toBe(false);
