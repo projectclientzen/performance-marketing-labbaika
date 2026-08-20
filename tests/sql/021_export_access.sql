@@ -10,8 +10,6 @@ begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-021-test');
 insert into brands (name, slug) values ('Other Brand', 'other-021-test');
-insert into auth.users default values; -- owner
-insert into auth.users default values; -- cs
 
 do $$
 declare
@@ -20,8 +18,14 @@ declare
 begin
   select id into v_brand from brands where slug = 'labbaika-021-test';
   select id into v_other_brand from brands where slug = 'other-021-test';
-  select id into v_owner from auth.users offset 0 limit 1;
-  select id into v_cs from auth.users offset 1 limit 1;
+
+  -- captured via RETURNING, not `offset .. limit 1` against the whole
+  -- table -- this runs against a real project that can have real rows in
+  -- auth.users, and grabbing an arbitrary existing user instead of the one
+  -- just inserted would attach test app_users/closings data to a real
+  -- identity.
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
 
   insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Owner', 'owner');
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'CS', 'cs');
@@ -88,7 +92,7 @@ reset role;
 
 -- === cs: role guard rejects even with a valid brand ===
 set role authenticated;
-select set_config('app.test_uid', cs_id::text, false) from export_021_ids;
+select set_config('request.jwt.claim.sub', cs_id::text, false) from export_021_ids;
 
 do $$
 declare v_brand uuid;
@@ -106,17 +110,23 @@ exception
 end $$;
 
 -- === owner: gets rows, PII intact ===
-select set_config('app.test_uid', owner_id::text, false) from export_021_ids;
+select set_config('request.jwt.claim.sub', owner_id::text, false) from export_021_ids;
 
 do $$
 declare v_brand uuid; v_count int;
 begin
   select brand_id into v_brand from export_021_ids;
+  -- operational export has no default status filter (unlike meta, which
+  -- always drops cancelled) -- all 3 seeded closings, cancelled included.
   select count(*) into v_count from get_export_operational(v_brand);
-  if v_count <> 2 then
-    raise exception 'TEST FAILED: operational export rows=%, expected 2 (consented + non-consented, not cancelled)', v_count;
+  if v_count <> 3 then
+    raise exception 'TEST FAILED: operational export rows=%, expected 3 (no default status filter)', v_count;
   end if;
-  raise notice 'TEST 3 PASSED: owner operational export returns % rows', v_count;
+  select count(*) into v_count from get_export_operational(v_brand, null, null, null, null, null, 'cancelled');
+  if v_count <> 1 then
+    raise exception 'TEST FAILED: operational export with p_status=cancelled rows=%, expected 1', v_count;
+  end if;
+  raise notice 'TEST 3 PASSED: owner operational export returns 3 rows unfiltered, 1 with p_status=cancelled';
 end $$;
 
 -- owner cannot pass another brand's id
