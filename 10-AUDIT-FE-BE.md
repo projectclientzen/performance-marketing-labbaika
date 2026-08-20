@@ -27,12 +27,12 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 7 | Laporan harian bisa dikirim dengan "sisa" > 0, ditolak DB | S1 | FE + BE (schema) | ✅ `a84a1ab` |
 | 8 | `saved.reduce()` crash kalau batch balas array kosong | S1 | FE | ✅ `fef30c3` |
 | 9 | `/cs/performa` kirim tanggal `-31` untuk semua bulan | S1 | FE | ✅ `74e1006` |
-| 10 | Tidak ada `GET /api/lead-reports/:id` — koreksi H-7 mustahil | S2 | BE + FE | ⬜ |
+| 10 | Tidak ada `GET /api/lead-reports/:id` — koreksi H-7 mustahil | S2 | BE + FE | ✅ `01eea37` — batas waktu dibuang atas keputusan Maszen |
 | 11 | Reconciliation tidak punya tombol tautkan | S2 | FE | ✅ `ab2181a` — tombol Tautkan tersambung ke endpoint yang sudah ada |
 | 12 | CS tidak bisa melihat / mengubah / membatalkan closing | S2 | FE | ⬜ |
 | 25 | **Keputusan produk 20 Agu: CPP/ROI per-CS dibatalkan, nomor WA CS ditambahkan** | lingkup | — | 📌 tercatat |
-| 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ⬜ |
-| 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
+| 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ❌ dicoret — `auto_lock_days` tidak dibaca kode manapun |
+| 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ❌ dicoret — diganti sync Meta API |
 | 15 | Tidak ada cara menambah user baru | S2 | BE | ✅ `7e9ef99`+`8bf916d`+`0d828b3` — form tambah CS, pakai invite link |
 | 26 | **Tidak ada alur ganti / lupa password** | S2 | FE+BE | ⬜ "Lupa password" di login masih `href="#"` |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
