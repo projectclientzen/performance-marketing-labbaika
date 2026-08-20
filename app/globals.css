@@ -37,6 +37,27 @@
   --color-stage-offer: #d6a83c;
   --color-stage-closing: #1e9e72;
 
+  /* --- Permukaan gelap & aksen ---------------------------------------
+   * Diekstrak dari prototype (sesi -d4), lalu dipetakan ke layar mana saja
+   * tiap warna dipakai sebelum diberi nama — supaya namanya menggambarkan
+   * peran, bukan tempat ia pertama ditemukan. Semuanya muncul di lebih dari
+   * satu layar kecuali tiga yang ditandai.
+   *
+   * on-brass yang paling berdampak: dipakai di 10 layar sebagai warna teks
+   * di atas tombol brass. Kode sekarang memakai navy-900 di sana — biru di
+   * atas kuning, sementara prototype memakai nyaris-hitam-hangat ini.
+   */
+  --color-on-brass: #1a1204;       /* teks di atas brass — F-01..F-05, F-12..F-14, F-16, F-19 */
+  --color-on-dark: #d2e8f0;        /* teks utama di atas navy — F-01, F-13 */
+  --color-on-dark-muted: #a6cbd8;  /* teks sekunder di atas navy — F-01, F-02, F-05, F-07, F-09, F-19 */
+  --color-on-dark-faint: #5487a0;  /* teks tersier di atas navy — F-01 saja */
+  --color-navy-800: #0a3a4f;       /* permukaan cekung di atas navy (input) — F-01, F-07 */
+  --color-navy-700: #1b5c78;       /* garis & badge di atas navy — F-01, F-07, F-19 */
+  --color-navy-600: #0f5a78;       /* item nav aktif di atas navy — F-19 saja */
+  --color-warn-ink: #8a6a12;       /* teks peringatan, brass cukup gelap untuk dibaca — F-02, F-05, F-08, F-19 */
+  --color-toast-ink: #e7edf5;      /* teks toast — F-04 saja */
+  --color-danger-lo: #f6e4d6;      /* permukaan lembut ikon danger — F-06 */
+
   --color-danger: #a8332b;
   --color-warn: #c9761e;
   --color-ok: #1e9e72;
