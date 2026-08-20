@@ -1,5 +1,7 @@
 "use client";
 
+import { hasOwnerAccess } from "@/lib/auth/roles";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -30,7 +32,7 @@ export default function LoginPage() {
     }
 
     const me = await fetch("/api/me").then((r) => r.json());
-    router.push(me.data?.role === "owner" ? "/owner" : "/cs");
+    router.push(hasOwnerAccess(me.data?.role) ? "/owner" : "/cs");
   }
 
   return (

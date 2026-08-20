@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { closingSchema } from "@/lib/schemas/closing";
 import { normalizePhoneID } from "@/lib/utils/phone";
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     .neq("payment_status", "cancelled")
     .maybeSingle();
 
-  if (conflict && !(force && appUser.role === "owner")) {
+  if (conflict && !(force && hasOwnerAccess(appUser.role))) {
     type ConflictRow = {
       closing_date: string;
       app_users: { full_name: string } | { full_name: string }[] | null;

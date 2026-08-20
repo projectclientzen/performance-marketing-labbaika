@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 const patchSchema = z.object({
@@ -17,7 +18,7 @@ export async function GET() {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -46,7 +47,7 @@ export async function PATCH(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 

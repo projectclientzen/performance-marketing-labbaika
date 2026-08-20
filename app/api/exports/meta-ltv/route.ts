@@ -1,4 +1,5 @@
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { fail, httpStatus } from "@/lib/api/envelope";
 import { metaColumns, buildMetaRow } from "@/lib/exports/meta/columns";
 
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return Response.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 

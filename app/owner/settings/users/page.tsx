@@ -1,5 +1,7 @@
 "use client";
 
+import type { AppRole } from "@/lib/auth/roles";
+
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Banner } from "@/components/ui/Banner";
@@ -7,7 +9,7 @@ import { Banner } from "@/components/ui/Banner";
 interface UserRow {
   id: string;
   full_name: string;
-  role: "owner" | "cs";
+  role: AppRole;
   is_active: boolean;
 }
 
@@ -29,7 +31,7 @@ export default function UserManagementPage() {
     }
   }
 
-  async function changeRole(u: UserRow, role: "owner" | "cs") {
+  async function changeRole(u: UserRow, role: AppRole) {
     try {
       await apiFetch("/api/users", { method: "PATCH", body: JSON.stringify({ id: u.id, role }) });
       load();
@@ -54,10 +56,11 @@ export default function UserManagementPage() {
             <div className="flex items-center gap-2">
               <select
                 value={u.role}
-                onChange={(e) => changeRole(u, e.target.value as "owner" | "cs")}
+                onChange={(e) => changeRole(u, e.target.value as AppRole)}
                 className="h-9 rounded-lg border border-line px-2 text-sm"
               >
                 <option value="cs">CS</option>
+                <option value="advertiser">Advertiser</option>
                 <option value="owner">Owner</option>
               </select>
               <button

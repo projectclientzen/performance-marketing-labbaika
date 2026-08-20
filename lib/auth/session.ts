@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import type { AppRole } from "@/lib/auth/roles";
 
 export interface AppUser {
   id: string;
   brand_id: string;
   full_name: string;
-  role: "owner" | "cs";
+  role: AppRole;
   is_active: boolean;
 }
 

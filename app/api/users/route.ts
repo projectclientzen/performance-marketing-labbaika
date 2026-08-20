@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 // Not in 04-BRIEF-BE.md's endpoint list explicitly, but F-19 (Manajemen
@@ -13,7 +14,7 @@ export async function GET() {
   if (!user) {
     return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
   }
-  if (!appUser || appUser.role !== "owner") {
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
@@ -32,7 +33,7 @@ export async function GET() {
 }
 
 const patchSchema = z.object({
-  role: z.enum(["owner", "cs"]).optional(),
+  role: z.enum(["owner", "advertiser", "cs"]).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -41,7 +42,7 @@ export async function PATCH(request: Request) {
   if (!user) {
     return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
   }
-  if (!appUser || appUser.role !== "owner") {
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 

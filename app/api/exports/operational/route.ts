@@ -1,4 +1,5 @@
 import { getAuthedAppUser } from "@/lib/auth/session";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { fail, httpStatus } from "@/lib/api/envelope";
 import { operationalColumns } from "@/lib/exports/operational/columns";
 import { PAYMENT_STATUS } from "@/lib/constants/enums";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (appUser.role !== "owner") {
+  if (!hasOwnerAccess(appUser.role)) {
     return Response.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
