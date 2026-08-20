@@ -77,10 +77,12 @@ export async function POST(request: Request) {
   // closing failed outright with "new row violates row-level security
   // policy" before this fix. { count: "exact" } gets a row count from the
   // command tag instead, no RETURNING involved, no RLS SELECT check.
+  const id = crypto.randomUUID();
   const { error, count } = await supabase
     .from("closings")
     .insert(
       {
+        id,
         brand_id: appUser.brand_id,
         cs_id: appUser.id,
         first_name: parsed.data.first_name,
@@ -142,7 +144,7 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json(ok({ saved: true }));
+  return NextResponse.json(ok({ id }));
 }
 
 export async function GET(request: Request) {
