@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { ok, fail } from "@/lib/api/envelope";
 
 /**
  * Verifies the Supabase connection is reachable. A PostgREST error (e.g.
@@ -14,13 +15,7 @@ export async function GET() {
 
   if (missingEnv.length > 0) {
     return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: "INTERNAL",
-          message: `Env var belum diisi: ${missingEnv.join(", ")}`,
-        },
-      },
+      fail("INTERNAL_ERROR", `Env var belum diisi: ${missingEnv.join(", ")}`),
       { status: 503 },
     );
   }
@@ -29,23 +24,19 @@ export async function GET() {
     const supabase = await createClient();
     const { error } = await supabase.from("app_users").select("id").limit(1);
 
-    return NextResponse.json({
-      data: {
+    return NextResponse.json(
+      ok({
         status: "ok",
         supabase_reachable: true,
         query_error: error?.message ?? null,
-      },
-      error: null,
-    });
+      }),
+    );
   } catch (err) {
     return NextResponse.json(
-      {
-        data: null,
-        error: {
-          code: "INTERNAL",
-          message: err instanceof Error ? err.message : "Gagal terhubung ke Supabase",
-        },
-      },
+      fail(
+        "INTERNAL_ERROR",
+        err instanceof Error ? err.message : "Gagal terhubung ke Supabase",
+      ),
       { status: 503 },
     );
   }
