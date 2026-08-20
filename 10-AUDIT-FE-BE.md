@@ -39,6 +39,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode + test (`23944f9`, `c342872`) — **migrasi 024 belum dijalankan ke produksi** |
 | **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
 | **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | 🔄 migrasi 025 siap, **belum dijalankan** |
+| **24** | **CI tidak menjalankan `tests/sql`; 1 kerentanan critical** | S2 | infra | ✅ `47def84` |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
 
@@ -1015,3 +1016,36 @@ Seluruh isinya idempotent — sudah diuji dijalankan dua kali berturut-turut.
    tabel, jadi 025 memperbaikinya tanpa perlu tahu jalur mana yang ditempuh.
 
 Suite SQL tetap 18 berkas, 0 gagal setelah 025.
+
+
+---
+
+## 24. S2 — CI tidak pernah menjalankan `tests/sql`, dan satu advisory critical
+
+Dua hal terpisah, dibereskan sekaligus karena keduanya di `ci.yml`/`package.json`.
+
+**CI tidak menyentuh RLS sama sekali.** `ci.yml` menjalankan lint, typecheck, dan vitest —
+dan vitest hanya menguji fungsi murni di `lib/`. Seluruh model keamanan sistem ini adalah
+RLS, dan `tests/sql` satu-satunya tempat RLS diuji. Selama ini dijalankan manual, atau tidak
+sama sekali. Artinya seluruh bukti isolasi antar-CS, guard brand, dan penyembunyian data
+tidak dijaga apa pun begitu tidak ada yang memeriksanya.
+
+Sekarang CI memasang service `postgres:15`, menjalankan `000_bootstrap.sql`, seluruh
+migrasi, lalu seluruh berkas test. Divalidasi dengan menjalankan urutan yang sama ke
+database lokal: **25 migrasi, 18 berkas test, 0 gagal.**
+
+**Kerentanan dependensi.** `npm audit` semula 10 (1 critical, 6 high, 3 moderate) — ini
+S2-10 dari `07-AUDIT-REPO.md`, terbuka sejak 19 Agustus.
+
+| Paket | Aksi | Hasil |
+|---|---|---|
+| `next` | `^14.2.5` → `^14.2.35` | patch, minor sama |
+| `vitest` | 2 → 4 | satu-satunya yang critical; dev-only, 89 test lulus tanpa perubahan konfigurasi |
+
+Sisa **5 high**, semuanya menuntut Next 16 — lompatan mayor framework yang tidak pantas
+diselipkan ke branch ini. Dicatat sebagai pekerjaan tersendiri.
+
+Efek sampingan yang berguna: menjalankan urutan CI secara lokal langsung memunculkan cacat
+kosmetik di `tests/sql/018` — notice-nya mencetak `pct_of_filled=83.33333333333333333300.1f%`
+karena `raise` di plpgsql mengenal `%` tapi tidak `%.1f`. Persis jenis hal yang tidak akan
+pernah ketahuan selama tidak ada yang menjalankannya.
