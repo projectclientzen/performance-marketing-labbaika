@@ -28,7 +28,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .eq("lead_report_id", id);
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports/[id]/insights]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -104,7 +105,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         status: httpStatus("VALIDATION_ERROR"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/lead-reports/[id]/insights]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

@@ -23,7 +23,8 @@ export async function GET() {
     .order("full_name");
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/users]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -61,7 +62,8 @@ export async function PATCH(request: Request) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/users]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

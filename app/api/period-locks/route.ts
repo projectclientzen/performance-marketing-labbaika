@@ -24,7 +24,8 @@ export async function GET() {
     .order("month", { ascending: false });
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/period-locks]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
         status: httpStatus("CONFLICT"),
       });
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/period-locks]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }

@@ -34,6 +34,9 @@ export default function LaporanHarianPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // S1-03: idempotency key dibuat SEKALI per pengisian form (bukan per klik),
+  // supaya klik ganda / retry kirim key yang sama dan tidak lolos cek duplikat.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [insightTarget, setInsightTarget] = useState<{
     id: string;
     consultation: number;
@@ -75,10 +78,12 @@ export default function LaporanHarianPage() {
         body: JSON.stringify({
           date,
           blocks,
-          idempotency_key: crypto.randomUUID(),
+          idempotency_key: idempotencyKey,
         }),
       });
       setSaved(true);
+      // Key lama sudah terpakai — buat baru untuk pengisian berikutnya.
+      setIdempotencyKey(crypto.randomUUID());
       // Insight sheet targets the block with the most consultation+offering
       // lead — showing one sheet per block would be more correct for
       // multi-source days, but adds real complexity for a rare case.

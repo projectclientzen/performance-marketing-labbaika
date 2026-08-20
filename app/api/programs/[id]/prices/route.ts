@@ -17,7 +17,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .order("effective_date", { ascending: false });
 
   if (error) {
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/programs/[id]/prices]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
@@ -62,7 +63,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: httpStatus("CONFLICT") },
       );
     }
-    return NextResponse.json(fail("INTERNAL_ERROR", error.message), {
+    console.error("[api/programs/[id]/prices]", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
