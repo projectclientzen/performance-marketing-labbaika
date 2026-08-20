@@ -135,9 +135,21 @@ export async function POST(request: Request) {
     email: parsed.data.email,
   });
   if (createError || !created.user) {
-    return NextResponse.json(fail("VALIDATION_ERROR", createError?.message ?? "Gagal membuat akun"), {
-      status: httpStatus("VALIDATION_ERROR"),
-    });
+    // Pesan mentah dari GoTrue tidak diteruskan ke klien — pola yang sama
+    // dibersihkan dari seluruh route lain di 17edd27 dan 9a9d744
+    // (07-AUDIT-REPO.md S1-04). Satu kondisi dipetakan khusus karena owner
+    // memang perlu tahu bedanya: email yang sudah terpakai bisa dia perbaiki
+    // sendiri, sisanya tidak.
+    const sudahTerdaftar = /already been registered|already exists/i.test(createError?.message ?? "");
+    console.error("[api/users] POST generateLink", createError);
+    return NextResponse.json(
+      fail(
+        "VALIDATION_ERROR",
+        sudahTerdaftar ? "Email ini sudah terdaftar" : "Gagal membuat akun",
+        sudahTerdaftar ? { email: "sudah terdaftar" } : undefined,
+      ),
+      { status: httpStatus("VALIDATION_ERROR") },
+    );
   }
 
   // Through the caller's own client — RLS (app_users owner_all policy)
