@@ -33,8 +33,6 @@ begin
   insert into lead_sources (brand_id, name, slug) values (v_brand, 'FB', 'fb') returning id into v_source;
   insert into programs (brand_id, name, destination, duration_days) values (v_brand, 'P', 'X', 9) returning id into v_program;
   insert into program_departures (brand_id, program_id, departure_date) values (v_brand, v_program, '2026-12-01') returning id into v_departure;
-  insert into program_costs (brand_id, program_id, departure_id, room_type, cost_price, effective_date)
-    values (v_brand, v_program, v_departure, 'quad', 28952000, '2026-08-01');
 
   -- consented, active closing -- should appear in both exports
   insert into closings (

@@ -34,6 +34,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
 | 15 | Tidak ada cara menambah user baru | S2 | BE | ⬜ |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
+| **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | 🔄 migrasi 023 + FE `684280d` selesai, BE jalan |
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | ⬜ terhalang #15 (tidak ada `POST /api/users`) |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
@@ -726,3 +727,101 @@ dan pola `insert ... default values` + `offset` jadi `insert into auth.users (id
 (gen_random_uuid()) returning id` di ketujuh berkas. Lalu jalankan ulang semuanya — dan
 perlakukan berkas mana pun yang berubah dari hijau jadi merah sebagai temuan baru, bukan
 sebagai test yang rusak.
+
+
+---
+
+## 20. Perubahan lingkup — HPP dan gross profit dibuang, metrik pindah ke omset
+
+Bukan temuan bug. Ini keputusan pemilik produk yang membatalkan sebagian asumsi
+`02-PRD-v1.3.md` dan `04-BRIEF-BE.md`, dicatat di sini supaya jejaknya jelas.
+
+**Keputusan (Maszen, 20 Agustus 2026):**
+
+> "harusnya gak ada gross, fokus ke omset karena aku gak handle hpp … aplikasi ini cuma
+> buat ngukur efektivitas iklan dan cs serta melihat roi atau roas yang dihasilkan dari
+> iklan … cuma ada revenue aja"
+
+Pemiliknya advertiser, bukan bagian keuangan. Aplikasi ini alat koordinasi dengan CS dan
+pelaporan efektivitas iklan ke owner. Harga program masuk lingkup; HPP program tidak.
+
+**Kenapa HPP sempat ada.** PRD dan brief BE membawanya sejak draft awal. Prototype FE
+(`docs/labbaika-reporting.html`) ikut menampilkan kolom Gross Profit, Break-even CPP, dan
+chip `estimasi` bertooltip "78% revenue sudah terisi HPP-nya" — tapi tidak punya satu pun
+layar untuk *mengisi* HPP. Itu petunjuk paling kuat bahwa HPP masuk lewat dokumen, bukan
+lewat kebutuhan: angkanya ditampilkan, inputnya tidak pernah dirancang.
+
+**Kenapa tidak cukup dibiarkan kosong.** Menyimpan kolom biaya yang selamanya NULL bukan
+pilihan netral. `gross_profit` adalah kolom generated `total_value - coalesce(cost,0)*pax`,
+jadi tanpa HPP nilainya sama dengan omset — dan `margin_pct` selalu 100%, `roi` salah
+besar, `breakeven_cpp` salah. Dashboard akan menampilkan angka yang salah secara diam-diam.
+
+### Formulasi ulang
+
+| Metrik | Dulu (berbasis HPP) | Sekarang (berbasis omset) |
+|---|---|---|
+| `roi` | `(gross_profit − spend) / spend` | `(omset − spend) / spend` |
+| `roas` | — | `omset / spend` (baru, diminta eksplisit) |
+| `breakeven_cpp` | `gross_profit / closing` | `omset / closing` |
+| `net_revenue` | `net_contribution` = `gross_profit − spend` | `omset − spend` |
+| `ad_cost_ratio` | `spend / omset` | tidak berubah |
+| `cpp` | `spend / closing` | tidak berubah |
+| `gross_profit`, `margin_pct`, `cost_coverage_rate` | ada | **dihapus** |
+
+Nama `breakeven_cpp` sengaja dipertahankan karena artinya justru jadi lebih lurus: tanpa
+HPP, titik impas biaya per closing memang sama dengan harga jualnya. Terbukti di fixture
+`tests/sql/016`: `breakeven_cpp` keluar 32.900.000 untuk kedua campaign, persis harga
+paketnya. `cppStatus()` di FE tidak perlu berubah.
+
+Nama kolom lain dipertahankan persis. Pelajaran dari export minggu ini: nama field yang
+meleset menghasilkan kolom kosong tanpa error apa pun.
+
+### Yang dibuang
+
+**Database (migrasi 023):** tabel `program_costs`; kolom `closings.cost_at_transaction`,
+`cost_source`, `cost_of_sales`, `gross_profit`; tipe `cost_source`; trigger T-7
+`lock_cost_at_transaction` beserta fungsinya; `brand_settings.default_margin_pct`.
+`v_closing_enriched` dan keempat fungsi analitik dibangun ulang.
+
+Migrasi `008_trigger_cost_lock.sql` **tetap di riwayat** — sudah pernah dijalankan ke
+database live, jadi tidak boleh dihapus. 023 yang membatalkannya.
+
+**BE:** `app/api/programs/[id]/costs/route.ts`, `costSchema` di `lib/schemas/program.ts`,
+`default_margin_pct` di `app/api/brand-settings/route.ts`, `cost_coverage_rate` di meta
+`app/api/dashboard/overview/route.ts`, seluruh matematika biaya di `lib/utils/profit.ts`.
+
+**FE (`684280d`):** kartu "Gross Profit" → "Omset", chip `estimasi` pada ROI dihapus,
+kolom Gross Profit di tabel campaign dan CS diganti omset, dan seluruh bagian input HPP di
+`app/owner/programs/page.tsx` dibuang.
+
+**Test:** `tests/sql/008_cost_lock.sql` dihapus (menguji trigger yang sudah tidak ada).
+`004`, `013`, `016`, `019`, `020`, `021` disesuaikan.
+
+### Dua kebocoran yang sekalian ditutup di 023
+
+Keduanya ditemukan saat menelusuri fungsi analitik untuk perubahan ini, dan diperbaiki di
+migrasi yang sama karena menyentuh fungsi yang persis sama.
+
+**20a. Angka se-brand bocor ke CS.** `get_dashboard_overview`, `get_campaign_quality`, dan
+`get_lead_insight_summary` hanya menjaga brand, tidak menjaga role, sementara EXECUTE-nya
+diberikan ke `authenticated`. Route menolak non-owner, tapi guard itu hanya hidup di
+TypeScript — CS yang sudah login bisa memanggil RPC-nya langsung dari browser dengan anon
+key dan menarik omset serta spend se-brand. 023 menambahkan guard `role = owner`.
+
+**20b. Antar-CS bisa saling melihat.** `get_cs_performance` mengembalikan baris **setiap**
+CS ke pemanggil mana pun dalam brand; penyaringan per-CS dilakukan di
+`app/api/dashboard/cs-performance/route.ts`. Lewat pemanggilan RPC langsung, seorang CS
+bisa membaca nama, funnel, jumlah closing, dan tingkat pembatalan rekannya. Pemilik
+menyatakan eksplisit bahwa antar-CS tidak boleh saling melihat, jadi 023 memindahkan
+penyaringannya ke dalam fungsi. Filter di route dipertahankan sebagai lapis kedua.
+
+### Belum selesai
+
+- **Migrasi 023 belum dijalankan ke database.** Butuh izin eksplisit Maszen.
+- Sisa BE (`app/api/programs/[id]/costs/route.ts`, `lib/schemas/program.ts`,
+  `brand-settings`, `overview` meta, `lib/utils/profit.ts`) sedang dikerjakan.
+- `02-PRD-v1.3.md` dan `04-BRIEF-BE.md` masih memuat HPP di §4, §11, F-13a. Dokumen sumber
+  perlu menyusul, kalau tidak pembaca berikutnya akan membangun ulang HPP dari sana.
+- Role `advertiser` (advertiser + owner satu akses) belum ditambahkan. Sengaja ditunda
+  sampai 023 mendarat, karena menambah nilai enum `user_role` lebih murah dilakukan
+  sekarang selagi `app_users` masih kosong.

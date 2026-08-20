@@ -87,13 +87,12 @@ begin
       raise notice 'TEST PASSED: paid_amount > total_value rejected (%)', sqlerrm;
   end;
 
-  -- 4. Sanity: a fully valid closing must succeed and gross_profit computes.
-  -- cost_at_transaction/cost_source are intentionally NOT set here: once
-  -- trigger T-7 exists (migration 008), it owns those columns and overwrites
-  -- any value supplied on INSERT — see tests/sql/008_cost_lock.sql for the
-  -- authoritative cost-locking proof. Without a matching program_costs row
-  -- or brand_settings.default_margin_pct, T-7 leaves cost unknown and
-  -- gross_profit falls back to total_value, which this only asserts.
+  -- 4. Sanity: a fully valid closing must succeed.
+  -- Versi lama assertion ini memeriksa gross_profit. Kolom itu -- bersama
+  -- cost_at_transaction, cost_of_sales, cost_source, dan trigger T-7 --
+  -- dibuang migrasi 023 (10-AUDIT-FE-BE.md #20): HPP di luar lingkup sistem,
+  -- yang diukur omset. Yang tersisa untuk diperiksa di sini adalah nilai
+  -- transaksinya sendiri.
   insert into closings (
     brand_id, cs_id, first_name, whatsapp_raw, whatsapp_e164,
     lead_date, source_id, previous_stage,
@@ -106,11 +105,11 @@ begin
     32900000, 32900000, 'dp', 5000000
   );
 
-  if (select gross_profit from closings where whatsapp_e164 = '+6281234567893') <> 32900000 then
-    raise exception 'TEST FAILED: gross_profit computed wrong, got %',
-      (select gross_profit from closings where whatsapp_e164 = '+6281234567893');
+  if (select total_value from closings where whatsapp_e164 = '+6281234567893') <> 32900000 then
+    raise exception 'TEST FAILED: total_value wrong, got %',
+      (select total_value from closings where whatsapp_e164 = '+6281234567893');
   end if;
-  raise notice 'TEST PASSED: valid closing accepted, gross_profit = total_value (no cost data available)';
+  raise notice 'TEST PASSED: valid closing accepted, total_value = 32900000';
 end $$;
 
 rollback;
