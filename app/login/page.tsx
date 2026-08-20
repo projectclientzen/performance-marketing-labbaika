@@ -1,6 +1,7 @@
 "use client";
 
 import { hasOwnerAccess } from "@/lib/auth/roles";
+import { apiFetch, ApiError } from "@/lib/api/client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,21 +19,25 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const res = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const body = await res.json();
-
-    if (!res.ok) {
-      setError(body.error?.message ?? "Gagal masuk");
+    try {
+      await apiFetch("/api/auth/session", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+      const me = await apiFetch<{ role: string }>("/api/me");
+      router.push(hasOwnerAccess(me.role) ? "/owner" : "/cs");
+      // loading stays true through the redirect on purpose — the button
+      // shouldn't flash back to enabled while the route is still changing.
+    } catch (e) {
+      // A 500 with an empty/non-JSON body (crashed runtime, gateway
+      // timeout) used to throw a raw SyntaxError here, which was never
+      // caught — the promise just rejected silently and setLoading(false)
+      // never ran, leaving "Memproses..." locked forever with no error
+      // shown. apiFetch now always throws ApiError; catch it and any other
+      // failure the same way.
+      setError(e instanceof ApiError ? e.message : "Gagal masuk");
       setLoading(false);
-      return;
     }
-
-    const me = await fetch("/api/me").then((r) => r.json());
-    router.push(hasOwnerAccess(me.data?.role) ? "/owner" : "/cs");
   }
 
   return (
