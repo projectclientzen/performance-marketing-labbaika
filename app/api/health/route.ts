@@ -24,20 +24,25 @@ export async function GET() {
     const supabase = await createClient();
     const { error } = await supabase.from("app_users").select("id").limit(1);
 
+    // Tidak meneruskan error.message maupun err.message ke klien: route ini
+    // tidak diautentikasi (middleware melewati /api), jadi pesan mentah
+    // Postgres di sini membocorkan nama tabel dan constraint ke siapa pun —
+    // persis pola yang dibersihkan dari seluruh route lain (07-AUDIT-REPO.md
+    // S1-04). Daftar env var yang kosong tetap disebutkan di atas: itu bukan
+    // rahasia, dan justru nilai diagnostik utama endpoint ini.
+    if (error) console.error("[api/health]", error);
+
     return NextResponse.json(
       ok({
         status: "ok",
         supabase_reachable: true,
-        query_error: error?.message ?? null,
+        query_ok: !error,
       }),
     );
   } catch (err) {
-    return NextResponse.json(
-      fail(
-        "INTERNAL_ERROR",
-        err instanceof Error ? err.message : "Gagal terhubung ke Supabase",
-      ),
-      { status: 503 },
-    );
+    console.error("[api/health]", err);
+    return NextResponse.json(fail("INTERNAL_ERROR", "Gagal terhubung ke Supabase"), {
+      status: 503,
+    });
   }
 }
