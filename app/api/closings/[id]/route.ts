@@ -3,12 +3,11 @@ import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
-// Explicit allow-list, not a passthrough of the request body: cost_at_transaction
-// is a plain (non-generated) column with no BEFORE UPDATE trigger guarding it
-// (T-7 only runs on INSERT — see migration 008), so forwarding arbitrary
-// client fields here would let a cs PATCH their own HPP. cost_of_sales and
-// gross_profit are `generated always as ... stored` and Postgres itself
-// rejects writes to those regardless.
+// Explicit allow-list, not a passthrough of the request body. Alasan aslinya
+// adalah mencegah cs mem-PATCH HPP-nya sendiri; kolom biaya itu sudah tidak ada
+// sejak migrasi 023, tapi daftar putihnya tetap dipertahankan. Meneruskan field
+// sembarang dari klien ke UPDATE tetap salah bentuk — brand_id, cs_id,
+// price_at_transaction, dan total_value bukan milik pemanggil untuk diubah.
 const patchSchema = z.object({
   last_name: z.string().optional(),
   email: z.string().email().optional(),

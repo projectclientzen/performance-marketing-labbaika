@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   // S0-02 (07-AUDIT-REPO.md): no .select() here. Supabase compiles
   // .insert().select() to INSERT ... RETURNING, which needs a SELECT
   // policy on the resulting row — cs deliberately has none on closings
-  // (that's what keeps cost_at_transaction hidden), so every cs-initiated
+  // (jalur baca cs adalah v_closings_cs), so every cs-initiated
   // closing failed outright with "new row violates row-level security
   // policy" before this fix. { count: "exact" } gets a row count from the
   // command tag instead, no RETURNING involved, no RLS SELECT check.

@@ -4,7 +4,6 @@ import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 const patchSchema = z.object({
-  default_margin_pct: z.number().min(0).max(100).optional(),
   auto_lock_days: z.number().int().positive().optional(),
 });
 
@@ -34,7 +33,7 @@ export async function GET() {
       status: httpStatus("INTERNAL_ERROR"),
     });
   }
-  return NextResponse.json(ok(data ?? { brand_id: appUser.brand_id, default_margin_pct: null, auto_lock_days: 45 }));
+  return NextResponse.json(ok(data ?? { brand_id: appUser.brand_id, auto_lock_days: 45 }));
 }
 
 export async function PATCH(request: Request) {
@@ -54,7 +53,7 @@ export async function PATCH(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(fail("VALIDATION_ERROR", "default_margin_pct/auto_lock_days tidak valid"), {
+    return NextResponse.json(fail("VALIDATION_ERROR", "auto_lock_days tidak valid"), {
       status: httpStatus("VALIDATION_ERROR"),
     });
   }

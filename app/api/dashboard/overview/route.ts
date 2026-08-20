@@ -46,7 +46,6 @@ export async function GET(request: Request) {
   return NextResponse.json(
     ok(data, {
       attribution_mode: attribution,
-      cost_coverage_rate: (data as { cost_coverage_rate: number | null })?.cost_coverage_rate ?? null,
     }),
   );
 }

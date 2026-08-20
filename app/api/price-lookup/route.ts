@@ -3,9 +3,10 @@ import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
 /**
- * Powers the closing wizard's price prefill (F-05 step 3). Mirrors the
- * lookup precedence trigger T-7 uses for cost (migration 008): prefer a
- * price row scoped to this exact departure over a departure-agnostic one.
+ * Powers the closing wizard's price prefill (F-05 step 3). Precedence: a
+ * price row scoped to this exact departure wins over a departure-agnostic
+ * one. Dulu ini mencerminkan trigger T-7 untuk HPP (migrasi 008); T-7 dan
+ * seluruh jalur biaya dibuang migrasi 023, aturan presedensinya tetap.
  */
 export async function GET(request: Request) {
   const { user, appUser, supabase } = await getAuthedAppUser();
