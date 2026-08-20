@@ -37,13 +37,13 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 26 | **Tidak ada alur ganti / lupa password** | S2 | FE+BE | ⬜ "Lupa password" di login masih `href="#"` |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
 | **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
-| 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
+| 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | ✅ 1 baris (Maszen, advertiser); tambah CS lewat F-19 setelah 027 |
 | **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode + test (`23944f9`, `c342872`) — **migrasi 024 belum dijalankan ke produksi** |
 | **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
 | **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | ✅ 025 dijalankan & terverifikasi di live |
 | **24** | **CI tidak menjalankan `tests/sql`; 1 kerentanan critical** | S2 | infra | ✅ `47def84` |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
-| **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
+| **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ✅ `a08c0c3` — bootstrap di-commit, 19 berkas pakai `request.jwt.claim.sub`, suite 19/19 |
 
 ### Status per 20 Agustus 2026
 
