@@ -21,9 +21,14 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
   const cursor = searchParams.get("cursor"); // created_at of the last row from the previous page
 
+  // app_users:user_id(full_name) — F-18 shows "Reza Simpan laporan harian
+  // 19 Agu" style messages, which need the actor's name, not just their
+  // id. RLS on app_users already lets an owner read every user in their
+  // own brand (owner_all policy), so this is a normal joined SELECT
+  // through the caller's own client, no elevated access involved.
   let query = supabase
     .from("audit_logs")
-    .select("*")
+    .select("*, app_users:user_id(full_name)")
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);
 
