@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
-
-function monthRange(year: number, month: number): { from: string; to: string } {
-  const from = `${year}-${String(month).padStart(2, "0")}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
-  const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  return { from, to };
-}
+import { monthRange } from "@/lib/utils/date";
 
 /**
  * Bundles Acquisition/Lead Quality/Sales/Profitability (from
