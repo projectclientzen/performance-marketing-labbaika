@@ -15,14 +15,39 @@ interface UserRow {
   email: string | null;
 }
 
+const emptyForm = { full_name: "", whatsapp: "", email: "", role: "cs" as AppRole };
+
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [creating, setCreating] = useState(false);
+  const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null);
 
   function load() {
     apiFetch<UserRow[]>("/api/users").then(setUsers).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
   }
   useEffect(load, []);
+
+  async function addUser() {
+    setCreating(true);
+    setError(null);
+    try {
+      const created = await apiFetch<{ email: string; temp_password: string }>("/api/users", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      setTempPassword({ email: created.email, password: created.temp_password });
+      setForm(emptyForm);
+      setShowForm(false);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menambah user");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   async function toggleActive(u: UserRow) {
     try {
@@ -99,9 +124,64 @@ export default function UserManagementPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-xl font-bold text-ink-900">Manajemen user</h1>
+        <button
+          type="button"
+          onClick={() => setShowForm((s) => !s)}
+          className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass"
+        >
+          + Tambah user
+        </button>
       </div>
-      <p className="text-xs text-ink-400">Membuat akun baru butuh akses Supabase Auth langsung — belum ada di UI ini.</p>
       {error && <Banner variant="danger">{error}</Banner>}
+
+      {tempPassword && (
+        <Banner variant="ok">
+          Akun {tempPassword.email} dibuat. Password sementara:{" "}
+          <span className="font-mono font-semibold">{tempPassword.password}</span> — sampaikan ke CS lewat WA,
+          belum ada alur ganti password di aplikasi.
+        </Banner>
+      )}
+
+      {showForm && (
+        <div className="space-y-2 rounded-[10px] border border-dashed border-line p-3">
+          <input
+            placeholder="Nama"
+            value={form.full_name}
+            onChange={(e) => setForm((s) => ({ ...s, full_name: e.target.value }))}
+            className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+          />
+          <input
+            placeholder="Nomor WhatsApp"
+            value={form.whatsapp}
+            onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))}
+            className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+            className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+          />
+          <select
+            value={form.role}
+            onChange={(e) => setForm((s) => ({ ...s, role: e.target.value as AppRole }))}
+            className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+          >
+            <option value="cs">CS</option>
+            <option value="advertiser">Advertiser</option>
+            <option value="owner">Owner</option>
+          </select>
+          <button
+            type="button"
+            onClick={addUser}
+            disabled={creating || !form.full_name || !form.whatsapp || !form.email}
+            className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
+          >
+            {creating ? "Menambah..." : "Simpan"}
+          </button>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
