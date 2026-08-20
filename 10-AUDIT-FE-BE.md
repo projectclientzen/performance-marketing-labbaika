@@ -38,6 +38,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
 | **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode + test (`23944f9`, `c342872`) — **migrasi 024 belum dijalankan ke produksi** |
 | **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
+| **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | 🔄 migrasi 025 siap, **belum dijalankan** |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
 
@@ -945,3 +946,72 @@ Ini pertama kalinya seluruh rantai migrasi dan seluruh test SQL terbukti konsist
 satu database. Perlu diingat batasannya: ini Postgres lokal dengan `auth.uid()` tiruan dari
 `tests/sql/000_bootstrap.sql`, bukan Supabase sungguhan. Yang terbukti adalah logika schema,
 RLS, dan guard fungsi. Yang belum: perilaku GoTrue, PostgREST, dan grant di project nyata.
+
+
+---
+
+## 23. S2 — Penyimpangan grant di database live, dan satu regresi kecil dari 024
+
+Ditemukan saat memverifikasi bahwa 023 dan 024 benar-benar terpasang. Keduanya **memang
+terpasang** — dibuktikan langsung:
+
+| Diperiksa | Hasil |
+|---|---|
+| `program_costs` | `PGRST205` — tabel hilang ✅ |
+| `closings.gross_profit` / `cost_of_sales` / `cost_at_transaction` / `cost_source` | `42703 column does not exist` ✅ |
+| `brand_settings.default_margin_pct` | `42703` ✅ |
+| `current_has_owner_access()` | ada, balas `null` untuk pemanggil tanpa identitas ✅ |
+| `app_users` | 1 baris: Maszen, role **`advertiser`**, aktif ✅ |
+
+Baris terakhir sekaligus membuktikan nilai enum `advertiser` ada — barisnya tidak akan bisa
+masuk kalau tidak.
+
+Tapi dua hal tidak sesuai harapan.
+
+### 23a. anon lolos pemeriksaan grant pada enam fungsi analitik/export
+
+Sebelum 023, anon yang memanggil `get_dashboard_overview` menerima
+`permission denied for function`. Sekarang menerima `akses ditolak untuk brand tersebut` —
+pesan dari **dalam badan fungsi**. Artinya pemeriksaan grant sudah dilewati.
+
+**Ini bukan kebocoran.** Diuji langsung ke live dengan `brand_id` asli
+(`14e9cf99-…`): anon tetap ditolak, nol baris keluar. Guard di dalam fungsi menahannya,
+karena `current_brand_id()` bernilai NULL untuk anon sehingga tidak pernah cocok dengan
+brand mana pun. Yang hilang adalah lapisan yang seharusnya menolak lebih awal.
+
+Menjalankan 001–024 ke database bersih menghasilkan `anon = false` untuk keenamnya
+(diperiksa lewat `has_function_privilege`). Jadi **berkas migrasinya benar; database live
+yang menyimpang.** Penyebabnya tidak bisa dipastikan dari luar — bisa urutan penerapan,
+bisa default privilege project yang menggrant ulang saat fungsi dibuat.
+
+### 23b. Regresi dari 024: anon tidak bisa memanggil `current_has_owner_access()`
+
+Migrasi 024 mencabut EXECUTE fungsi itu dari anon. Niatnya baik, sasarannya salah: fungsi
+ini dipanggil dari **dalam policy RLS**, jadi mencabutnya membuat query anon ke tabel
+ber-policy gagal dengan `permission denied for function current_has_owner_access` alih-alih
+membalas nol baris. Terlihat langsung di live — `GET /rest/v1/closings` sebagai anon dulu
+membalas `[]`, sesudah 024 membalas error.
+
+Dua saudaranya, `current_brand_id()` dan `current_app_role()` (migrasi 013), tidak pernah
+dicabut dari anon justru karena alasan yang sama. 024 membuat yang ketiga tidak konsisten.
+
+Membiarkan anon memanggilnya tidak membocorkan apa pun: hasilnya selalu NULL karena
+bersandar pada `auth.uid()`. Yang menjaga data tetap policy-nya sendiri.
+
+### Perbaikan: migrasi 025
+
+Seluruh isinya idempotent — sudah diuji dijalankan dua kali berturut-turut.
+
+1. `grant execute on function current_has_owner_access() to anon` — konsisten dengan dua
+   saudaranya, mengembalikan perilaku "nol baris" alih-alih error.
+2. Menegaskan ulang `revoke execute ... from public, anon` pada keenam fungsi, plus
+   `grant ... to authenticated`.
+3. Jaring pengaman: membuang trigger HPP dengan nama yang benar, lalu blok verifikasi yang
+   melempar exception kalau masih ada sisa. **Ini penting** — kalau yang terlanjur
+   dijalankan ke live adalah 023 versi pertama (sebelum `c342872`), trigger
+   `trg_b3_lock_cost_at_closing` masih hidup dan setiap insert closing akan gagal. Belum
+   ketahuan karena `closings` masih kosong; CS pertama yang menyimpan closing yang akan
+   menemukannya. Dari luar, keadaan itu tidak bisa dibedakan tanpa benar-benar menulis ke
+   tabel, jadi 025 memperbaikinya tanpa perlu tahu jalur mana yang ditempuh.
+
+Suite SQL tetap 18 berkas, 0 gagal setelah 025.
