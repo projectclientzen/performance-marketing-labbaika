@@ -130,15 +130,46 @@ export default function ProgramsPage() {
           </section>
 
           <section className="rounded-[10px] border border-line bg-card p-4">
-            <h2 className="mb-2 text-sm font-semibold text-ink-600">Riwayat harga</h2>
-            <ul className="mb-3 space-y-1 text-sm">
-              {prices.map((p) => (
-                <li key={p.id} className="flex justify-between font-mono text-ink-900">
-                  <span>{p.room_type} — sejak {formatDateID(p.effective_date)}</span>
-                  <span>{formatRupiah(p.price)}</span>
-                </li>
-              ))}
-            </ul>
+            <h2 className="mb-3 text-sm font-semibold text-ink-600">Harga per tipe kamar</h2>
+            {/* Grouped by room_type, newest first per group — prototype shows
+                the current price up top per room type, then a dated history
+                underneath it (not one flat list mixing every room type). */}
+            <div className="mb-4 grid grid-cols-3 gap-3">
+              {ROOM_TYPES.map((rt) => {
+                const roomPrices = prices
+                  .filter((p) => p.room_type === rt)
+                  .sort((a, b) => b.effective_date.localeCompare(a.effective_date));
+                const current = roomPrices[0];
+                return (
+                  <div key={rt} className="rounded-lg border border-line p-2 text-center">
+                    <p className="text-xs capitalize text-ink-400">{rt}</p>
+                    <p className="font-mono text-sm font-semibold text-ink-900">
+                      {current ? formatRupiah(current.price) : "-"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {prices.length > 0 && (
+              <div className="mb-3 space-y-3">
+                {ROOM_TYPES.filter((rt) => prices.some((p) => p.room_type === rt)).map((rt) => (
+                  <div key={rt}>
+                    <p className="mb-1 text-xs font-medium capitalize text-ink-600">Riwayat harga ({rt})</p>
+                    <ul className="space-y-1 text-sm">
+                      {prices
+                        .filter((p) => p.room_type === rt)
+                        .sort((a, b) => b.effective_date.localeCompare(a.effective_date))
+                        .map((p) => (
+                          <li key={p.id} className="flex justify-between font-mono text-ink-900">
+                            <span>{formatDateID(p.effective_date)}</span>
+                            <span>{formatRupiah(p.price)}</span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               <select value={newPrice.room_type} onChange={(e) => setNewPrice((s) => ({ ...s, room_type: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm">
                 {ROOM_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
