@@ -46,7 +46,15 @@ export async function POST(request: Request) {
           p_offset: offset,
           p_limit: PAGE_SIZE,
         });
-        if (error || !data || data.length === 0) break;
+        // See app/api/exports/operational/route.ts for why error and
+        // empty-data can't share a `break`: a silent break here would hand
+        // Meta a truncated audience list that looks like a complete one.
+        if (error) {
+          console.error("[api/exports/meta-ltv]", error);
+          controller.error(new Error("Export gagal"));
+          return;
+        }
+        if (!data || data.length === 0) break;
 
         for (const row of data) {
           const hashedRow = buildMetaRow({

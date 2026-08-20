@@ -1,6 +1,7 @@
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { fail, httpStatus } from "@/lib/api/envelope";
 import { operationalColumns } from "@/lib/exports/operational/columns";
+import { PAYMENT_STATUS } from "@/lib/constants/enums";
 
 const PAGE_SIZE = 1000;
 
@@ -37,6 +38,16 @@ export async function POST(request: Request) {
   const sourceId: string | undefined = body.source;
   const status: string | undefined = body.status;
 
+  // p_status is a payment_status enum on the DB side — an unvalidated value
+  // would surface as a Postgres enum error mid-stream, which (see below)
+  // reads to the client as a truncated-but-successful CSV. Reject up front
+  // instead.
+  if (status !== undefined && !(status in PAYMENT_STATUS)) {
+    return Response.json(fail("VALIDATION_ERROR", "status tidak valid", { status }), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
+
   const { data: sources } = await supabase.from("lead_sources").select("id, name");
   const sourceNameById = new Map((sources ?? []).map((s: { id: string; name: string }) => [s.id, s.name]));
 
@@ -61,7 +72,18 @@ export async function POST(request: Request) {
           p_offset: offset,
           p_limit: PAGE_SIZE,
         });
-        if (error || !data || data.length === 0) break;
+        // A mid-stream error must NOT look like a clean end-of-data: the
+        // header (and possibly prior pages) are already flushed, so a
+        // silent `break` here would hand the owner a 200 OK CSV that's
+        // quietly missing rows, with no way to tell it apart from a
+        // complete export. controller.error() breaks the download instead
+        // — worse UX, but an honest failure beats a wrong number.
+        if (error) {
+          console.error("[api/exports/operational]", error);
+          controller.error(new Error("Export gagal"));
+          return;
+        }
+        if (!data || data.length === 0) break;
 
         for (const row of data) {
           const mapped = {

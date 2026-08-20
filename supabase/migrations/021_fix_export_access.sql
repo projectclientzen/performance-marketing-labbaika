@@ -19,6 +19,12 @@
 -- to keep memory flat at 50k+ rows (CC-B24, exports/operational/route.ts:8).
 -- These functions keep that shape: p_offset/p_limit, one page per call, the
 -- route's existing loop-until-empty logic is unchanged.
+--
+-- order by ... closing_date desc, id: closing_date alone is not unique and
+-- Postgres gives no ordering guarantee among ties, so a plain OFFSET/LIMIT
+-- pager can repeat or skip rows across pages once more than one closing
+-- shares a date -- routine at 50k+ rows. The id tiebreaker makes each
+-- page's boundary deterministic.
 
 create function get_export_operational(
   p_brand_id uuid,
@@ -83,7 +89,7 @@ begin
     and (p_program is null or c.program_id = p_program)
     and (p_source is null or c.source_id = p_source)
     and (p_status is null or c.payment_status = p_status)
-  order by c.closing_date desc
+  order by c.closing_date desc, c.id
   offset p_offset limit p_limit;
 end;
 $$;
@@ -133,7 +139,7 @@ begin
     and c.payment_status <> 'cancelled'
     and (p_from is null or c.closing_date >= p_from)
     and (p_to is null or c.closing_date <= p_to)
-  order by c.closing_date desc
+  order by c.closing_date desc, c.id
   offset p_offset limit p_limit;
 end;
 $$;
