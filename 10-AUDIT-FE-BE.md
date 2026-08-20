@@ -29,7 +29,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 9 | `/cs/performa` kirim tanggal `-31` untuk semua bulan | S1 | FE | ✅ `74e1006` |
 | 10 | Tidak ada `GET /api/lead-reports/:id` — koreksi H-7 mustahil | S2 | BE + FE | ✅ `01eea37` — batas waktu dibuang atas keputusan Maszen |
 | 11 | Reconciliation tidak punya tombol tautkan | S2 | FE | ✅ `ab2181a` — tombol Tautkan tersambung ke endpoint yang sudah ada |
-| 12 | CS tidak bisa melihat / mengubah / membatalkan closing | S2 | FE | ⬜ |
+| 12 | CS tidak bisa melihat / mengubah / membatalkan closing | S2 | FE | ✅ `728ea6e` — `/cs/closing/riwayat` + koreksi & batal |
 | 25 | **Keputusan produk 20 Agu: CPP/ROI per-CS dibatalkan, nomor WA CS ditambahkan** | lingkup | — | 📌 tercatat |
 | 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ❌ dicoret — `auto_lock_days` tidak dibaca kode manapun |
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ❌ dicoret — diganti sync Meta API |
@@ -42,7 +42,7 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
 | **23** | **Grant EXECUTE menyimpang di live + anon tak bisa panggil `current_has_owner_access()`** | S2 | DB | ✅ 025 dijalankan & terverifikasi di live |
 | **24** | **CI tidak menjalankan `tests/sql`; 1 kerentanan critical** | S2 | infra | ✅ `47def84` |
-| 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
+| 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ✅ `79cfba4` |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ✅ `a08c0c3` — bootstrap di-commit, 19 berkas pakai `request.jwt.claim.sub`, suite 19/19 |
 
 ### Status per 20 Agustus 2026
@@ -1142,3 +1142,39 @@ SMTP dikonfigurasi.
 membuatkan tautan baru. Belum mendesak sesudah invite link masuk, tapi tetap lubang nyata.
 Perbaikannya kecil — `supabase.auth.resetPasswordForEmail()` plus satu halaman untuk
 menetapkan password baru — dan butuh SMTP aktif di project Supabase.
+
+
+---
+
+## Penutup — 21 Agustus 2026
+
+Seluruh temuan yang dibuka audit ini sudah ditutup atau dicoret. Ringkasannya:
+
+| Hasil | Jumlah |
+|---|---|
+| Diperbaiki | 22 |
+| Dicoret setelah diperiksa (#13, #14) | 2 |
+| Keputusan produk tercatat (#21, #25) | 2 |
+
+Dua yang dicoret layak dicatat alasannya, karena keduanya awalnya tampak seperti pekerjaan
+nyata. `auto_lock_days` (#13) ternyata tidak dibaca kode manapun — konfigurasi mati, jadi
+halaman pengaturannya tidak punya alasan ada. Import manual level adset/ad (#14) digantikan
+sync Meta API, jadi memperbaikinya berarti membangun jalur yang langsung ditinggalkan.
+
+### Yang tidak pernah bisa diverifikasi dari sesi ini
+
+Tidak satu pun dari 19 layar pernah dilihat langsung oleh sesi yang mengaudit maupun sesi
+yang mengerjakannya — tidak ada kredensial login di lingkungan agent. Yang diverifikasi:
+struktur, kontrak komponen, keamanan, nilai terukur (`getComputedStyle` untuk sidebar), dan
+seluruh perilaku basis data lewat test SQL sebagai role sungguhan.
+
+Penilaian visual sepenuhnya milik pemilik produk. Beberapa bagian juga hanya ditinjau lewat
+konstruksi kode karena datanya belum ada: F-05 step 4 (butuh program terisi) dan alur batal
+closing di F-12 (butuh closing tersimpan).
+
+### Catatan operasional
+
+Beberapa proses `next dev` berjalan bersamaan dari sesi berbeda pada working tree yang sama,
+berbagi satu direktori `.next`. Itu merusak dev server berulang kali selama pengerjaan. Kalau
+nanti ada lagi kerja paralel di repo ini, satu worktree per sesi jauh lebih murah daripada
+mendiagnosis build yang rusak tanpa sebab.
