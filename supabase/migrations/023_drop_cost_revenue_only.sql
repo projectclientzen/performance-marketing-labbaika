@@ -66,8 +66,16 @@ drop view if exists v_closing_enriched;
 
 -- T-7 mengunci HPP saat insert closing (migrasi 008). Tanpa program_costs
 -- trigger ini tidak punya sumber data dan tidak punya tujuan.
-drop trigger if exists trg_lock_cost_at_transaction on closings;
-drop function if exists lock_cost_at_transaction();
+--
+-- Nama persis dari migrasi 008 -- BUKAN tebakan. Versi pertama migrasi ini
+-- menulis `trg_lock_cost_at_transaction` / `lock_cost_at_transaction()`, dan
+-- karena keduanya dibungkus `if exists`, Postgres diam saja: triggernya
+-- selamat, lalu meledak di setiap INSERT closing dengan
+-- 'relation "program_costs" does not exist'. Ketahuan saat menjalankan seluruh
+-- rantai 001-024 ke database sekali-pakai. `if exists` menyembunyikan salah
+-- ketik nama -- itulah kenapa blok verifikasi di akhir langkah 2 ada.
+drop trigger if exists trg_b3_lock_cost_at_closing on closings;
+drop function if exists lock_cost_at_closing();
 
 -- ---------------------------------------------------------------------------
 -- Langkah 2: buang kolom dan tabel biaya.
@@ -87,6 +95,31 @@ drop type if exists cost_source;
 -- default_margin_pct hanya dipakai untuk menurunkan target margin dari HPP.
 -- auto_lock_days tidak ada hubungannya dengan biaya dan tetap tinggal.
 alter table brand_settings drop column if exists default_margin_pct;
+
+-- Verifikasi: setiap `drop ... if exists` di atas diam kalau namanya salah
+-- ketik, dan kesalahannya baru muncul jauh kemudian sebagai kegagalan runtime.
+-- Blok ini menutup celah itu -- migrasi gagal di sini, bukan di produksi.
+do $$
+declare v_sisa text;
+begin
+  select string_agg(proname, ', ') into v_sisa
+  from pg_proc where prosrc like '%program_costs%';
+  if v_sisa is not null then
+    raise exception 'masih ada fungsi yang menyebut program_costs: %', v_sisa;
+  end if;
+
+  if to_regclass('public.program_costs') is not null then
+    raise exception 'tabel program_costs masih ada';
+  end if;
+
+  select string_agg(column_name, ', ') into v_sisa
+  from information_schema.columns
+  where table_name = 'closings'
+    and column_name in ('cost_at_transaction', 'cost_source', 'cost_of_sales', 'gross_profit');
+  if v_sisa is not null then
+    raise exception 'kolom biaya masih ada di closings: %', v_sisa;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- Langkah 3: bangun ulang view fakta closing, tanpa kolom biaya.

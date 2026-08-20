@@ -7,12 +7,17 @@ insert into brands (name, slug) values ('Labbaika Group', 'labbaika-insight-sum-
 
 do $$
 declare
-  v_brand uuid; v_cs uuid; v_source uuid; v_report uuid;
+  v_brand uuid; v_cs uuid; v_owner uuid; v_source uuid; v_report uuid;
   v_cat_harga uuid; v_cat_jadwal uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-insight-sum-test';
   insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
+  -- Migrasi 023 menambahkan guard role=owner di get_lead_insight_summary:
+  -- agregat insight se-brand adalah layar Owner (F-10), bukan konsumsi cs.
+  -- Berkas ini karena itu memanggilnya sebagai owner.
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
+  insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Maszen', 'owner');
   insert into lead_sources (brand_id, name, slug) values (v_brand, 'Facebook CTWA', 'fb-ctwa') returning id into v_source;
   insert into insight_categories (brand_id, name, slug) values (v_brand, 'Harga', 'harga') returning id into v_cat_harga;
   insert into insight_categories (brand_id, name, slug) values (v_brand, 'Jadwal', 'jadwal') returning id into v_cat_jadwal;
@@ -26,14 +31,14 @@ begin
   insert into lead_report_insights (brand_id, lead_report_id, stage, category_id, lead_count)
     values (v_brand, v_report, 'offering', v_cat_jadwal, 5);
 
-  create temp table t018_ids as select v_brand as brand_id, v_cs as cs_id;
+  create temp table t018_ids as select v_brand as brand_id, v_cs as cs_id, v_owner as owner_id;
   grant select on t018_ids to authenticated;
 end $$;
 
 -- get_lead_insight_summary is SECURITY DEFINER with a p_brand_id guard as
 -- of migration 019 -- must call as a real authenticated role, not superuser.
 set local role authenticated;
-select set_config('request.jwt.claim.sub', cs_id::text, false) from t018_ids;
+select set_config('request.jwt.claim.sub', owner_id::text, false) from t018_ids;
 
 do $$
 declare
