@@ -12,6 +12,7 @@ interface UserRow {
   full_name: string;
   role: AppRole;
   is_active: boolean;
+  email: string | null;
 }
 
 export default function UserManagementPage() {
@@ -43,6 +44,13 @@ export default function UserManagementPage() {
 
   const columns: DataTableColumn<UserRow>[] = [
     { key: "full_name", header: "Nama", accessor: (r) => r.full_name, cardLabel: "Nama" },
+    {
+      key: "email",
+      header: "Email",
+      accessor: (r) => r.email,
+      render: (u) => u.email ?? "-",
+      cardLabel: "Email",
+    },
     {
       key: "role",
       header: "Peran",
