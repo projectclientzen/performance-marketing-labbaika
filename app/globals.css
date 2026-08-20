@@ -1,11 +1,19 @@
 @import "tailwindcss";
 
 /*
- * Token warna diambil dari prototype Claude Design yang sudah disetujui
- * (docs/labbaika-reporting.html) — navy/brass/blue, bukan palet ink-900 di
- * draft awal 03-BRIEF-FE-ClaudeDesign.md §2 yang sudah dievolusikan saat
- * desain final dibuat. Sisanya (stage/danger/warn/ok, radius, spacing)
- * tetap mengikuti aturan brief karena tidak berubah di prototype.
+ * Token warna diambil dari prototype Claude Design (docs/labbaika-reporting.html),
+ * yang jadi acuan visual tunggal — bukan palet di draft awal
+ * 03-BRIEF-FE-ClaudeDesign.md §2.
+ *
+ * Tujuh token sempat menyimpang dari prototype dan diluruskan 20 Agustus:
+ * ink-600, ink-400, paper, brass-lo, stage-cold, stage-closing, ok. Selisihnya
+ * halus per token (#4a5b6b vs #2e6178 misalnya) tapi menumpuk di setiap layar —
+ * teks sekunder terbaca kelabu alih-alih biru-teal, dan hijau closing terlalu
+ * tua. Diverifikasi dengan mengekstrak kedua daftar lalu membandingkannya satu
+ * per satu, bukan dengan mata.
+ *
+ * Kalau ada token yang terasa perlu diubah, ubah di prototype dulu. Berkas ini
+ * mengikuti, tidak memimpin.
  *
  * @theme mendaftarkan token ini sebagai custom property DAN utility class
  * Tailwind sekaligus (bg-navy-900, text-brass, dst) — cara Tailwind v4.
@@ -13,25 +21,25 @@
 @theme {
   --color-navy-900: #0b3d54;
   --color-ink-900: #0b3d54;
-  --color-ink-600: #4a5b6b;
-  --color-ink-400: #8593a0;
-  --color-paper: #f4f6f8;
+  --color-ink-600: #2e6178;
+  --color-ink-400: #6e93a3;
+  --color-paper: #eef4f7;
   --color-card: #ffffff;
   --color-line: #dce2ea;
 
   --color-brass: #d6a83c;
-  --color-brass-lo: #f7ecd3;
+  --color-brass-lo: #fbefd3;
   --color-blue: #2e9ad6;
   --color-text-light: #eef4f7;
 
-  --color-stage-cold: #8a94a6;
+  --color-stage-cold: #8fa0ab;
   --color-stage-consult: #2e9ad6;
   --color-stage-offer: #d6a83c;
-  --color-stage-closing: #1f7a5c;
+  --color-stage-closing: #1e9e72;
 
   --color-danger: #a8332b;
   --color-warn: #c9761e;
-  --color-ok: #1f7a5c;
+  --color-ok: #1e9e72;
 
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
