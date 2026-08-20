@@ -55,7 +55,7 @@ export default function ManagementReportPage() {
           type="button"
           onClick={downloadJson}
           disabled={!report}
-          className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-navy-900 disabled:opacity-50"
+          className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass disabled:opacity-50"
         >
           Unduh
         </button>

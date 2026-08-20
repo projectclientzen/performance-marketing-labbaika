@@ -55,7 +55,7 @@ export default function PeriodLockPage() {
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>Bulan {m}</option>)}
         </select>
         <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} className="h-10 w-24 rounded-lg border border-line px-2 text-sm" />
-        <button type="button" onClick={lockPeriod} className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-navy-900">
+        <button type="button" onClick={lockPeriod} className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass">
           Kunci periode
         </button>
       </div>

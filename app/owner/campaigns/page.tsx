@@ -6,6 +6,7 @@ import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatPercent, formatROI, formatMultiple } from "@/lib/utils/percent";
 import { todayJakarta } from "@/lib/utils/date";
 import { Banner } from "@/components/ui/Banner";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
 interface CampaignRow {
   campaign_id: string;
@@ -24,6 +25,14 @@ interface CampaignRow {
   roas: number | null;
 }
 
+// →consult/→offer/→close are stage-to-stage conversion, each denominated by
+// the previous stage's count (verified against the prototype's own numbers:
+// 250 lead, →consult 80% → 200, →offer 50% of 200 → 100, →close 30% of 100
+// → 30 closing, which matches the row's closing count exactly).
+function pct(n: number, total: number): number | null {
+  return total > 0 ? n / total : null;
+}
+
 export default function CampaignQualityPage() {
   const [rows, setRows] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,48 +47,120 @@ export default function CampaignQualityPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const columns: DataTableColumn<CampaignRow>[] = [
+    { key: "campaign_name", header: "Campaign", accessor: (r) => r.campaign_name },
+    {
+      key: "spend",
+      header: "Spend",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.spend,
+      render: (r) => formatRupiah(r.spend),
+      cardLabel: "Spend",
+    },
+    {
+      key: "total_lead",
+      header: "Lead",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.total_lead,
+      cardLabel: "Lead",
+    },
+    {
+      key: "cpl_meta",
+      header: "CPL",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.cpl_meta,
+      render: (r) => (r.cpl_meta ? formatRupiah(Math.round(r.cpl_meta)) : "-"),
+      cardLabel: "CPL",
+    },
+    {
+      key: "reached_consultation_pct",
+      header: "→consult",
+      align: "right",
+      accessor: (r) => pct(r.reached_consultation, r.total_lead),
+      render: (r) => formatPercent(pct(r.reached_consultation, r.total_lead)),
+    },
+    {
+      key: "reached_offering_pct",
+      header: "→offer",
+      align: "right",
+      accessor: (r) => pct(r.reached_offering, r.reached_consultation),
+      render: (r) => formatPercent(pct(r.reached_offering, r.reached_consultation)),
+    },
+    {
+      key: "reached_closing_pct",
+      header: "→close",
+      align: "right",
+      accessor: (r) => pct(r.closing, r.reached_offering),
+      render: (r) => formatPercent(pct(r.closing, r.reached_offering)),
+    },
+    {
+      key: "closing",
+      header: "Closing",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.closing,
+      cardLabel: "Closing",
+    },
+    {
+      key: "gross_booking_value",
+      header: "Omset",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.gross_booking_value,
+      render: (r) => formatRupiah(r.gross_booking_value),
+      cardLabel: "Omset",
+    },
+    {
+      key: "cpp",
+      header: "CPP",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.cpp,
+      render: (r) => (r.cpp ? formatRupiah(Math.round(r.cpp)) : "-"),
+      cardLabel: "CPP",
+    },
+    {
+      key: "breakeven_cpp",
+      header: "BE CPP",
+      align: "right",
+      accessor: (r) => r.breakeven_cpp,
+      render: (r) => (r.breakeven_cpp ? formatRupiah(Math.round(r.breakeven_cpp)) : "-"),
+    },
+    {
+      key: "roi",
+      header: "ROI",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.roi,
+      render: (r) => <span className="font-semibold text-brass">{formatROI(r.roi)}</span>,
+    },
+    {
+      key: "roas",
+      header: "ROAS",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.roas,
+      render: (r) => formatMultiple(r.roas),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-xl font-bold text-ink-900">Campaign Quality</h1>
       {error && <Banner variant="danger">{error}</Banner>}
       {loading && <p className="text-sm text-ink-400">Memuat...</p>}
 
-      <div className="overflow-x-auto rounded-[10px] border border-line bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-ink-600">
-              <th className="p-3">Campaign</th>
-              <th className="p-3 text-right">Spend</th>
-              <th className="p-3 text-right">Lead</th>
-              <th className="p-3 text-right">CPL</th>
-              <th className="p-3 text-right">Closing</th>
-              <th className="p-3 text-right">Closing Rate</th>
-              <th className="p-3 text-right">Omset</th>
-              <th className="p-3 text-right">CPP</th>
-              <th className="p-3 text-right">Break-even CPP</th>
-              <th className="p-3 text-right">ROI</th>
-              <th className="p-3 text-right">ROAS</th>
-            </tr>
-          </thead>
-          <tbody className="font-mono">
-            {rows.map((r) => (
-              <tr key={r.campaign_id} className="border-b border-line last:border-0">
-                <td className="p-3 font-sans font-medium text-ink-900">{r.campaign_name}</td>
-                <td className="p-3 text-right">{formatRupiah(r.spend)}</td>
-                <td className="p-3 text-right">{r.total_lead}</td>
-                <td className="p-3 text-right">{r.cpl_meta ? formatRupiah(Math.round(r.cpl_meta)) : "-"}</td>
-                <td className="p-3 text-right">{r.closing}</td>
-                <td className="p-3 text-right">{formatPercent(r.closing_rate)}</td>
-                <td className="p-3 text-right">{formatRupiah(r.gross_booking_value)}</td>
-                <td className="p-3 text-right">{r.cpp ? formatRupiah(Math.round(r.cpp)) : "-"}</td>
-                <td className="p-3 text-right">{r.breakeven_cpp ? formatRupiah(Math.round(r.breakeven_cpp)) : "-"}</td>
-                <td className="p-3 text-right font-semibold text-brass">{formatROI(r.roi)}</td>
-                <td className="p-3 text-right">{formatMultiple(r.roas)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.campaign_id}
+        defaultSortKey="roi"
+        cardTitle={(r) => r.campaign_name}
+        cardAccent={(r) => formatROI(r.roi)}
+      />
     </div>
   );
 }

@@ -95,7 +95,7 @@ export default function AdsImportPage() {
           type="button"
           onClick={handleImport}
           disabled={loading || !csvText}
-          className="h-11 w-full rounded-lg bg-brass text-sm font-semibold text-navy-900 disabled:opacity-50"
+          className="h-11 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
         >
           {loading ? "Mengimpor..." : "Import"}
         </button>

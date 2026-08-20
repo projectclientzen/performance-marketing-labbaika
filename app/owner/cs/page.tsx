@@ -6,6 +6,7 @@ import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatPercent } from "@/lib/utils/percent";
 import { todayJakarta } from "@/lib/utils/date";
 import { Banner } from "@/components/ui/Banner";
+import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
 interface CsRow {
   cs_id: string;
@@ -26,15 +27,62 @@ export default function CsPerformancePage() {
   const [rows, setRows] = useState<CsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [daysInRange, setDaysInRange] = useState(1);
 
   useEffect(() => {
     const from = `${todayJakarta().slice(0, 7)}-01`;
     const to = todayJakarta();
+    setDaysInRange(Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86_400_000) + 1);
     apiFetch<CsRow[]>(`/api/dashboard/cs-performance?from=${from}&to=${to}`)
       .then(setRows)
       .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"))
       .finally(() => setLoading(false));
   }, []);
+
+  const columns: DataTableColumn<CsRow>[] = [
+    { key: "cs_name", header: "CS", accessor: (r) => r.cs_name },
+    {
+      key: "report_days",
+      header: "Hari Lapor",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.report_days,
+      render: (r) => `${r.report_days} / ${daysInRange}`,
+      cardLabel: "Hari Lapor",
+    },
+    {
+      key: "closing",
+      header: "Closing",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.closing,
+      cardLabel: "Closing",
+    },
+    {
+      key: "gross_booking_value",
+      header: "Omset",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.gross_booking_value,
+      render: (r) => <span className="font-semibold text-brass">{formatRupiah(r.gross_booking_value)}</span>,
+      cardLabel: "Omset",
+    },
+    {
+      key: "avg_closing_interval",
+      header: "Avg Interval",
+      align: "right",
+      sortable: true,
+      accessor: (r) => r.avg_closing_interval,
+      render: (r) => (r.avg_closing_interval != null ? `${Math.round(r.avg_closing_interval)} hari` : "-"),
+    },
+    {
+      key: "cancellation_rate",
+      header: "Cancellation Rate",
+      align: "right",
+      accessor: (r) => r.cancellation_rate,
+      render: (r) => formatPercent(r.cancellation_rate),
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -42,36 +90,14 @@ export default function CsPerformancePage() {
       {error && <Banner variant="danger">{error}</Banner>}
       {loading && <p className="text-sm text-ink-400">Memuat...</p>}
 
-      <div className="overflow-x-auto rounded-[10px] border border-line bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-line text-left text-xs text-ink-600">
-              <th className="p-3">CS</th>
-              <th className="p-3 text-right">Total Lead</th>
-              <th className="p-3 text-right">Closing</th>
-              <th className="p-3 text-right">Omset</th>
-              <th className="p-3 text-right">Avg Interval</th>
-              <th className="p-3 text-right">Cancellation Rate</th>
-              <th className="p-3 text-right">Hari Lapor</th>
-            </tr>
-          </thead>
-          <tbody className="font-mono">
-            {rows.map((r) => (
-              <tr key={r.cs_id} className="border-b border-line last:border-0">
-                <td className="p-3 font-sans font-medium text-ink-900">{r.cs_name}</td>
-                <td className="p-3 text-right">{r.total_lead}</td>
-                <td className="p-3 text-right">{r.closing}</td>
-                <td className="p-3 text-right font-semibold text-brass">{formatRupiah(r.gross_booking_value)}</td>
-                <td className="p-3 text-right">
-                  {r.avg_closing_interval != null ? `${Math.round(r.avg_closing_interval)} hari` : "-"}
-                </td>
-                <td className="p-3 text-right">{formatPercent(r.cancellation_rate)}</td>
-                <td className="p-3 text-right">{r.report_days}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(r) => r.cs_id}
+        defaultSortKey="gross_booking_value"
+        cardTitle={(r) => r.cs_name}
+        cardAccent={(r) => `${r.report_days} / ${daysInRange}`}
+      />
     </div>
   );
 }

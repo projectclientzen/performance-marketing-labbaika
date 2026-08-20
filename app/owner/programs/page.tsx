@@ -106,7 +106,7 @@ export default function ProgramsPage() {
           <input placeholder="Nama" value={newProgram.name} onChange={(e) => setNewProgram((s) => ({ ...s, name: e.target.value }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
           <input placeholder="Destinasi" value={newProgram.destination} onChange={(e) => setNewProgram((s) => ({ ...s, destination: e.target.value }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
           <input type="number" placeholder="Durasi (hari)" value={newProgram.duration_days} onChange={(e) => setNewProgram((s) => ({ ...s, duration_days: parseInt(e.target.value, 10) || 0 }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
-          <button type="button" onClick={addProgram} className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-navy-900">
+          <button type="button" onClick={addProgram} className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass">
             Tambah
           </button>
         </div>
