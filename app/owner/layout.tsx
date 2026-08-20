@@ -109,7 +109,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="mt-auto pt-6">
+        {/* Menempel langsung di bawah Export, bukan didorong ke dasar sidebar:
+            sebagai kelanjutan daftar nav ia terbaca satu kesatuan, sedangkan
+            di dasar layar ia tampak seperti kontrol yang tidak berhubungan. */}
+        <div className="mt-1.5">
           <button
             type="button"
             onClick={() => setShowMore((v) => !v)}
