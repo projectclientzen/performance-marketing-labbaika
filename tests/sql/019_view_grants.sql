@@ -11,8 +11,6 @@ begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-019-test');
 insert into brands (name, slug) values ('Other Brand', 'other-019-test');
-insert into auth.users default values; -- owner
-insert into auth.users default values; -- cs
 
 do $$
 declare
@@ -21,8 +19,8 @@ declare
 begin
   select id into v_brand from brands where slug = 'labbaika-019-test';
   select id into v_other_brand from brands where slug = 'other-019-test';
-  select id into v_owner from auth.users offset 0 limit 1;
-  select id into v_cs from auth.users offset 1 limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
 
   insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Owner', 'owner');
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'CS', 'cs');
@@ -80,7 +78,7 @@ reset role;
 
 -- === owner: full numbers still correct ===
 set role authenticated;
-select set_config('app.test_uid', owner_id::text, false) from rls_019_ids;
+select set_config('request.jwt.claim.sub', owner_id::text, false) from rls_019_ids;
 
 do $$
 declare v_brand uuid; v_profit bigint;
@@ -110,7 +108,7 @@ exception
 end $$;
 
 -- === cs: gross_profit/gross_booking_value masked, everything else intact ===
-select set_config('app.test_uid', cs_id::text, false) from rls_019_ids;
+select set_config('request.jwt.claim.sub', cs_id::text, false) from rls_019_ids;
 
 do $$
 declare v_brand uuid; v_profit bigint; v_gbv bigint; v_lead bigint; v_found boolean := false;

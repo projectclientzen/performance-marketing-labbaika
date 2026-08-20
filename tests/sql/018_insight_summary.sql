@@ -4,7 +4,6 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-insight-sum-test');
-insert into auth.users default values;
 
 do $$
 declare
@@ -12,7 +11,7 @@ declare
   v_cat_harga uuid; v_cat_jadwal uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-insight-sum-test';
-  select id into v_cs from auth.users limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
   insert into lead_sources (brand_id, name, slug) values (v_brand, 'Facebook CTWA', 'fb-ctwa') returning id into v_source;
   insert into insight_categories (brand_id, name, slug) values (v_brand, 'Harga', 'harga') returning id into v_cat_harga;
@@ -34,7 +33,7 @@ end $$;
 -- get_lead_insight_summary is SECURITY DEFINER with a p_brand_id guard as
 -- of migration 019 -- must call as a real authenticated role, not superuser.
 set local role authenticated;
-select set_config('app.test_uid', cs_id::text, false) from t018_ids;
+select set_config('request.jwt.claim.sub', cs_id::text, false) from t018_ids;
 
 do $$
 declare

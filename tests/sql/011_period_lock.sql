@@ -1,13 +1,10 @@
 -- Proof for CC-B11 "selesai kalau" — all 4 scenarios.
 -- NOTE: relies on a local-only stub auth.uid() (real Supabase provides this
--- natively) reading session var app.test_uid, set via `set local`.
+-- natively) reading session var request.jwt.claim.sub, set via `set local`.
 
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-lock-test');
-
-insert into auth.users default values; -- cs
-insert into auth.users default values; -- owner
 
 do $$
 declare
@@ -16,8 +13,8 @@ declare
 begin
   select id into v_brand from brands where slug = 'labbaika-lock-test';
 
-  select id into v_cs from auth.users offset 0 limit 1;
-  select id into v_owner from auth.users offset 1 limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
 
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
   insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Owner', 'owner');
@@ -37,7 +34,7 @@ begin
   insert into period_locks (brand_id, year, month, locked_by) values (v_brand, 2026, 8, v_owner);
 
   -- === Scenario 1: CS fails to edit August report after lock ===
-  perform set_config('app.test_uid', v_cs::text, true);
+  perform set_config('request.jwt.claim.sub', v_cs::text, true);
   begin
     update lead_reports set cold = 24, consultation = 16 where id = v_report;
     raise exception 'SCENARIO 1 FAILED: CS edit on locked period was accepted';
@@ -51,10 +48,10 @@ begin
   end;
 
   -- === Scenario 2: owner succeeds, recorded in audit log ===
-  perform set_config('app.test_uid', v_owner::text, true);
+  perform set_config('request.jwt.claim.sub', v_owner::text, true);
   update lead_reports set cold = 24, consultation = 16 where id = v_report; -- sum still 50
 
-  perform set_config('app.test_uid', null, true);
+  perform set_config('request.jwt.claim.sub', null, true);
   select id into v_report from lead_reports where id = v_report and cold = 24 and consultation = 16;
   if v_report is null then
     raise exception 'SCENARIO 2 FAILED: owner edit did not apply';
@@ -65,7 +62,7 @@ begin
 
   -- === Scenario 3: closing 10 Sep for lead_date 20 Agu saved despite Aug locked,
   --                 bucket 20 Agu corrected ===
-  perform set_config('app.test_uid', v_cs::text, true);
+  perform set_config('request.jwt.claim.sub', v_cs::text, true);
   insert into closings (
     brand_id, cs_id, first_name, whatsapp_raw, lead_date, source_id,
     previous_stage, closing_date, program_id, departure_id,
@@ -76,7 +73,7 @@ begin
     'quad', 1, 32900000, 32900000, 'dp'
   );
 
-  perform set_config('app.test_uid', null, true);
+  perform set_config('request.jwt.claim.sub', null, true);
   perform 1 from lead_reports where id = v_report and offering = 9 and closing = 1;
   if not found then
     raise exception 'SCENARIO 3 FAILED: August bucket not corrected after locked-period closing';

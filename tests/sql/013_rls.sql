@@ -5,9 +5,6 @@ begin;
 
 -- Setup as postgres (bypasses RLS, as intended for admin/migration work).
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-rls-test');
-insert into auth.users default values; -- cs_a
-insert into auth.users default values; -- cs_b
-insert into auth.users default values; -- owner
 
 do $$
 declare
@@ -15,9 +12,9 @@ declare
   v_program uuid; v_departure uuid; v_report_a uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-rls-test';
-  select id into v_cs_a from auth.users offset 0 limit 1;
-  select id into v_cs_b from auth.users offset 1 limit 1;
-  select id into v_owner from auth.users offset 2 limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_a;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_b;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
 
   insert into app_users (id, brand_id, full_name, role) values (v_cs_a, v_brand, 'Reza', 'cs');
   insert into app_users (id, brand_id, full_name, role) values (v_cs_b, v_brand, 'Dina', 'cs');
@@ -56,7 +53,7 @@ end $$;
 
 -- === Switch to CS A session ===
 set role authenticated;
-select set_config('app.test_uid', cs_a::text, false) from rls_test_ids;
+select set_config('request.jwt.claim.sub', cs_a::text, false) from rls_test_ids;
 
 -- 1. CS A cannot read closing rows belonging to CS B (there are none, but
 --    prove the row-count rule generically): CS A must see exactly their own row.
@@ -161,7 +158,7 @@ begin
 end $$;
 
 -- === Switch to CS B session: must not see CS A's report/closing/insights ===
-select set_config('app.test_uid', cs_b::text, false) from rls_test_ids;
+select set_config('request.jwt.claim.sub', cs_b::text, false) from rls_test_ids;
 
 do $$
 declare v_n int;

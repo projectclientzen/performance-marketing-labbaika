@@ -10,8 +10,6 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-020-test');
-insert into auth.users default values; -- cs A
-insert into auth.users default values; -- cs B
 
 do $$
 declare
@@ -19,8 +17,8 @@ declare
   v_program uuid; v_departure uuid; v_closing_id uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-020-test';
-  select id into v_cs_a from auth.users offset 0 limit 1;
-  select id into v_cs_b from auth.users offset 1 limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_a;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_b;
 
   insert into app_users (id, brand_id, full_name, role) values (v_cs_a, v_brand, 'CS A', 'cs');
   insert into app_users (id, brand_id, full_name, role) values (v_cs_b, v_brand, 'CS B', 'cs');
@@ -46,7 +44,7 @@ end $$;
 
 -- === CS A updates their own closing through the view ===
 set role authenticated;
-select set_config('app.test_uid', cs_a::text, false) from t020_ids;
+select set_config('request.jwt.claim.sub', cs_a::text, false) from t020_ids;
 
 do $$
 declare v_id uuid; v_count int;
@@ -61,7 +59,7 @@ begin
 end $$;
 
 -- === CS B cannot touch CS A's closing, even via the view ===
-select set_config('app.test_uid', cs_b::text, false) from t020_ids;
+select set_config('request.jwt.claim.sub', cs_b::text, false) from t020_ids;
 
 do $$
 declare v_id uuid; v_count int;

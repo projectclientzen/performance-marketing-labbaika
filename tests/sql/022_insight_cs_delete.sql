@@ -5,8 +5,6 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-022-test');
-insert into auth.users default values; -- cs A
-insert into auth.users default values; -- cs B
 
 do $$
 declare
@@ -14,8 +12,8 @@ declare
   v_report_a uuid; v_report_b uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-022-test';
-  select id into v_cs_a from auth.users offset 0 limit 1;
-  select id into v_cs_b from auth.users offset 1 limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_a;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs_b;
 
   insert into app_users (id, brand_id, full_name, role) values (v_cs_a, v_brand, 'CS A', 'cs');
   insert into app_users (id, brand_id, full_name, role) values (v_cs_b, v_brand, 'CS B', 'cs');
@@ -41,7 +39,7 @@ end $$;
 -- === CS A replaces (delete then insert) their own insight -- simulates the
 -- route's second save, which used to 500 on the duplicate key before 022 ===
 set role authenticated;
-select set_config('app.test_uid', cs_a::text, false) from t022_ids;
+select set_config('request.jwt.claim.sub', cs_a::text, false) from t022_ids;
 
 do $$
 declare v_report uuid; v_cat uuid; v_del_count int;
@@ -58,7 +56,7 @@ begin
 end $$;
 
 -- === CS B cannot delete CS A's insight via the same policy ===
-select set_config('app.test_uid', cs_b::text, false) from t022_ids;
+select set_config('request.jwt.claim.sub', cs_b::text, false) from t022_ids;
 
 do $$
 declare v_report uuid; v_count int;

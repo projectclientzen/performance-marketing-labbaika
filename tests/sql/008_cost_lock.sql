@@ -3,12 +3,13 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-cost-test');
-insert into auth.users default values;
-insert into app_users (id, brand_id, full_name, role)
-  select u.id, b.id, 'Reza', 'cs'
-  from auth.users u, brands b
-  where b.slug = 'labbaika-cost-test'
-  order by u.id desc limit 1;
+do $$
+declare v_cs uuid;
+begin
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
+  insert into app_users (id, brand_id, full_name, role)
+    select v_cs, id, 'Reza', 'cs' from brands where slug = 'labbaika-cost-test';
+end $$;
 insert into lead_sources (brand_id, name, slug)
   select id, 'Facebook CTWA', 'facebook-ctwa' from brands where slug = 'labbaika-cost-test';
 insert into programs (brand_id, name, destination, duration_days)

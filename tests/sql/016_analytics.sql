@@ -5,7 +5,6 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-analytics-test');
-insert into auth.users default values;
 
 do $$
 declare
@@ -14,7 +13,7 @@ declare
   i int;
 begin
   select id into v_brand from brands where slug = 'labbaika-analytics-test';
-  select id into v_cs from auth.users limit 1;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_cs;
   insert into app_users (id, brand_id, full_name, role) values (v_cs, v_brand, 'Reza', 'cs');
 
   insert into lead_sources (brand_id, name, slug) values (v_brand, 'Facebook CTWA', 'fb-ctwa') returning id into v_source;
@@ -78,7 +77,7 @@ end $$;
 -- role with a matching brand, not superuser (which has no auth.uid() claim
 -- and would get "akses ditolak").
 set local role authenticated;
-select set_config('app.test_uid', cs_id::text, false) from t016_ids;
+select set_config('request.jwt.claim.sub', cs_id::text, false) from t016_ids;
 
 do $$
 declare
