@@ -65,3 +65,61 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   return NextResponse.json(ok(data));
 }
+
+/**
+ * Menghapus satu keberangkatan. `?id=` menunjuk barisnya; program di path
+ * dipakai sebagai penyaring kedua supaya id dari program lain tidak bisa
+ * dihapus lewat rute ini.
+ *
+ * Keberangkatan yang sudah dipakai closing ditolak — closing menyimpan
+ * departure_id, dan menghapusnya membuat baris closing menunjuk keberangkatan
+ * yang tidak ada.
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, appUser, supabase } = await getAuthedAppUser();
+
+  if (!user) {
+    return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
+  }
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
+    return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
+  }
+
+  const departureId = new URL(request.url).searchParams.get("id");
+  if (!departureId) {
+    return NextResponse.json(fail("BAD_REQUEST", "Parameter id wajib diisi"), {
+      status: httpStatus("BAD_REQUEST"),
+    });
+  }
+
+  const { count: dipakai } = await supabase
+    .from("closings")
+    .select("id", { count: "exact", head: true })
+    .eq("departure_id", departureId);
+
+  if (dipakai) {
+    return NextResponse.json(
+      fail("CONFLICT", `Keberangkatan ini dipakai ${dipakai} closing, jadi tidak bisa dihapus.`),
+      { status: httpStatus("CONFLICT") },
+    );
+  }
+
+  const { error, count } = await supabase
+    .from("program_departures")
+    .delete({ count: "exact" })
+    .eq("id", departureId)
+    .eq("program_id", id);
+
+  if (error) {
+    console.error("[api/programs/:id/departures] DELETE", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
+  }
+  if (!count) {
+    return NextResponse.json(fail("NOT_FOUND", "Keberangkatan tidak ditemukan"), {
+      status: httpStatus("NOT_FOUND"),
+    });
+  }
+
+  return NextResponse.json(ok({ id: departureId }));
+}

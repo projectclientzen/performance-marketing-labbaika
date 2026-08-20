@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api/client";
+import { apiFetch, ApiError } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatDateID } from "@/lib/utils/date";
 import { Banner } from "@/components/ui/Banner";
@@ -36,7 +36,10 @@ export default function ProgramsPage() {
 
   const [newProgram, setNewProgram] = useState({ name: "", destination: "", duration_days: 9 });
   const [newDeparture, setNewDeparture] = useState({ departure_date: "" });
-  const [newPrice, setNewPrice] = useState({ room_type: "quad", price: 0, effective_date: "" });
+  // price sengaja string kosong, bukan 0: input number yang sudah berisi 0
+  // menyembunyikan placeholder "Harga", jadi kolomnya terbaca sudah terisi —
+  // lalu Tambah ditolak `price harus lebih dari 0` tanpa petunjuk kolom mana.
+  const [newPrice, setNewPrice] = useState({ room_type: "quad", price: "", effective_date: "" });
 
   function loadPrograms() {
     apiFetch<Program[]>("/api/programs").then(setPrograms);
@@ -49,6 +52,46 @@ export default function ProgramsPage() {
     apiFetch<PriceRow[]>(`/api/programs/${programId}/prices`).then(setPrices);
   }
 
+  /**
+   * Amplop API membalas VALIDATION_ERROR dengan pesan umum plus `fields` berisi
+   * kalimat per kolom. Sebelumnya hanya pesan umumnya yang ditampilkan, jadi
+   * "Ada data yang belum sesuai. Periksa pesan per kolom" muncul tanpa satu pun
+   * pesan per kolom di layar — dan tidak ada cara tahu kolom mana yang salah.
+   */
+  function pesanError(e: unknown, bawaan: string) {
+    if (e instanceof ApiError) {
+      const perKolom = e.fields ? Object.values(e.fields) : [];
+      return perKolom.length > 0 ? perKolom.join(". ") : e.message;
+    }
+    return e instanceof Error ? e.message : bawaan;
+  }
+
+  async function hapus(url: string, gagal: string) {
+    setError(null);
+    try {
+      await apiFetch(url, { method: "DELETE" });
+      loadPrograms();
+      if (selected) loadDetail(selected);
+    } catch (e) {
+      setError(pesanError(e, gagal));
+    }
+  }
+
+  async function hapusProgram(id: string) {
+    setError(null);
+    try {
+      await apiFetch(`/api/programs/${id}`, { method: "DELETE" });
+      if (selected === id) {
+        setSelected(null);
+        setDepartures([]);
+        setPrices([]);
+      }
+      loadPrograms();
+    } catch (e) {
+      setError(pesanError(e, "Gagal menghapus program"));
+    }
+  }
+
   async function addProgram() {
     setError(null);
     try {
@@ -56,7 +99,7 @@ export default function ProgramsPage() {
       setNewProgram({ name: "", destination: "", duration_days: 9 });
       loadPrograms();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menambah program");
+      setError(pesanError(e, "Gagal menambah program"));
     }
   }
 
@@ -65,9 +108,10 @@ export default function ProgramsPage() {
     setError(null);
     try {
       await apiFetch(`/api/programs/${selected}/departures`, { method: "POST", body: JSON.stringify(newDeparture) });
+      setNewDeparture({ departure_date: "" });
       loadDetail(selected);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menambah keberangkatan");
+      setError(pesanError(e, "Gagal menambah keberangkatan"));
     }
   }
 
@@ -75,10 +119,11 @@ export default function ProgramsPage() {
     if (!selected) return;
     setError(null);
     try {
-      await apiFetch(`/api/programs/${selected}/prices`, { method: "POST", body: JSON.stringify(newPrice) });
+      await apiFetch(`/api/programs/${selected}/prices`, { method: "POST", body: JSON.stringify({ ...newPrice, price: Number(newPrice.price) }) });
+      setNewPrice({ room_type: "quad", price: "", effective_date: "" });
       loadDetail(selected);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal menambah harga");
+      setError(pesanError(e, "Gagal menambah harga"));
     }
   }
 
@@ -89,15 +134,28 @@ export default function ProgramsPage() {
         {error && <Banner variant="danger">{error}</Banner>}
         <div className="divide-y divide-line rounded-[10px] border border-line bg-card">
           {programs.map((p) => (
-            <button
+            <div
               key={p.id}
-              type="button"
-              onClick={() => loadDetail(p.id)}
-              className={`block w-full p-3 text-left text-sm ${selected === p.id ? "bg-brass-lo" : ""}`}
+              className={`flex items-center gap-2 pr-2 ${selected === p.id ? "bg-brass-lo" : ""}`}
             >
-              <p className="font-medium text-ink-900">{p.name}</p>
-              <p className="text-xs text-ink-400">{p.destination} · {p.duration_days} hari</p>
-            </button>
+              <button
+                type="button"
+                onClick={() => loadDetail(p.id)}
+                className="block min-w-0 flex-1 p-3 text-left text-sm"
+              >
+                <p className="truncate font-medium text-ink-900">{p.name}</p>
+                <p className="truncate text-xs text-ink-400">{p.destination} · {p.duration_days} hari</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => hapusProgram(p.id)}
+                aria-label={`Hapus program ${p.name}`}
+                title="Hapus program"
+                className="shrink-0 rounded-lg px-2 py-1 text-sm text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
+              >
+                ✕
+              </button>
+            </div>
           ))}
         </div>
 
@@ -118,8 +176,21 @@ export default function ProgramsPage() {
             <h2 className="mb-2 text-sm font-semibold text-ink-600">Keberangkatan</h2>
             <ul className="mb-3 space-y-1 text-sm">
               {departures.map((d) => (
-                <li key={d.id} className="font-mono text-ink-900">{formatDateID(d.departure_date)}</li>
+                <li key={d.id} className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-ink-900">{formatDateID(d.departure_date)}</span>
+                  <button
+                    type="button"
+                    onClick={() => hapus(`/api/programs/${selected}/departures?id=${d.id}`, "Gagal menghapus keberangkatan")}
+                    aria-label={`Hapus keberangkatan ${formatDateID(d.departure_date)}`}
+                    className="rounded-lg px-2 text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
+                  >
+                    ✕
+                  </button>
+                </li>
               ))}
+              {departures.length === 0 && (
+                <li className="text-ink-400">Belum ada keberangkatan.</li>
+              )}
             </ul>
             <div className="flex gap-2">
               <input type="date" value={newDeparture.departure_date} onChange={(e) => setNewDeparture({ departure_date: e.target.value })} className="h-9 rounded-lg border border-line px-2 text-sm" />
@@ -170,11 +241,40 @@ export default function ProgramsPage() {
                 ))}
               </div>
             )}
+            {/* Riwayat harga. Komentar di atas menyebut prototype menampilkan
+                riwayat bertanggal di bawah kartu, tapi belum pernah dibuat —
+                akibatnya harga yang salah ketik tidak punya jalan dihapus, dan
+                kartu di atas hanya menampilkan yang terbaru sehingga baris lama
+                tak terlihat sama sekali. */}
+            {prices.length > 0 && (
+              <ul className="mb-4 divide-y divide-line border-t border-line text-sm">
+                {[...prices]
+                  .sort((a, b) => b.effective_date.localeCompare(a.effective_date))
+                  .map((pr) => (
+                    <li key={pr.id} className="flex items-center gap-3 py-2">
+                      <span className="w-16 shrink-0 capitalize text-ink-600">{pr.room_type}</span>
+                      <span className="flex-1 font-mono text-ink-900">{formatRupiah(pr.price)}</span>
+                      <span className="font-mono text-xs text-ink-400">
+                        mulai {formatDateID(pr.effective_date)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => hapus(`/api/programs/${selected}/prices?id=${pr.id}`, "Gagal menghapus harga")}
+                        aria-label={`Hapus harga ${pr.room_type}`}
+                        className="rounded-lg px-2 text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <select value={newPrice.room_type} onChange={(e) => setNewPrice((s) => ({ ...s, room_type: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm">
                 {ROOM_TYPES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <input type="number" placeholder="Harga" value={newPrice.price} onChange={(e) => setNewPrice((s) => ({ ...s, price: parseInt(e.target.value, 10) || 0 }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
+              <input type="number" min={1} placeholder="Harga" value={newPrice.price} onChange={(e) => setNewPrice((s) => ({ ...s, price: e.target.value }))} className="h-9 rounded-lg border border-line px-2 font-mono text-sm" />
               <input type="date" value={newPrice.effective_date} onChange={(e) => setNewPrice((s) => ({ ...s, effective_date: e.target.value }))} className="h-9 rounded-lg border border-line px-2 text-sm" />
               <button type="button" onClick={addPrice} className="h-9 rounded-lg border border-line px-3 text-sm font-medium">
                 Tambah
