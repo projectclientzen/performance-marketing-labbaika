@@ -7,17 +7,27 @@
 begin;
 
 insert into brands (name, slug) values ('Labbaika Group', 'labbaika-027-test');
-insert into auth.users (id) values (gen_random_uuid());
 
 do $$
 declare v_brand uuid; v_owner uuid; v_new_cs uuid;
 begin
   select id into v_brand from brands where slug = 'labbaika-027-test';
-  select id into v_owner from auth.users order by id desc limit 1;
+
+  -- app_users.id punya FK ke auth.users (001_enums_and_master.sql), jadi
+  -- identitas auth harus ada LEBIH DULU. Itu juga urutan alur sungguhannya:
+  -- POST /api/users memanggil generateLink() untuk membuat identitas, baru
+  -- menyisipkan barisnya di app_users dengan id yang sama.
+  --
+  -- Keduanya dibuat di sini, sebagai superuser, karena role `authenticated`
+  -- tidak punya hak insert ke auth.users -- di Supabase sungguhan yang
+  -- membuat identitas adalah GoTrue lewat service role, bukan sesi pemanggil.
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_owner;
+  insert into auth.users (id) values (gen_random_uuid()) returning id into v_new_cs;
 
   insert into app_users (id, brand_id, full_name, role) values (v_owner, v_brand, 'Owner', 'owner');
 
-  create temp table t027_ids as select v_brand as brand_id, v_owner as owner_id;
+  create temp table t027_ids as
+    select v_brand as brand_id, v_owner as owner_id, v_new_cs as new_cs_id;
   grant select on t027_ids to authenticated;
 end $$;
 
@@ -25,9 +35,9 @@ set role authenticated;
 select set_config('request.jwt.claim.sub', owner_id::text, false) from t027_ids;
 
 do $$
-declare v_brand uuid; v_new_id uuid := gen_random_uuid(); v_wa text;
+declare v_brand uuid; v_new_id uuid; v_wa text;
 begin
-  select brand_id into v_brand from t027_ids;
+  select brand_id, new_cs_id into v_brand, v_new_id from t027_ids;
 
   insert into app_users (id, brand_id, full_name, whatsapp, role)
   values (v_new_id, v_brand, 'CS Baru', '+6281234500099', 'cs');
