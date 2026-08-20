@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { todayJakarta } from "@/lib/utils/date";
 import { formatRupiah } from "@/lib/utils/rupiah";
@@ -224,7 +225,12 @@ export default function ClosingFormPage() {
           >
             ‹
           </button>
-          <h1 className="font-display text-[17px] font-semibold text-ink-900">Catat closing</h1>
+          <h1 className="flex-1 font-display text-[17px] font-semibold text-ink-900">Catat closing</h1>
+          {step === 0 && (
+            <Link href="/cs/closing/riwayat" className="text-sm font-medium text-ink-600">
+              Riwayat
+            </Link>
+          )}
         </div>
         <div className="mt-3.5 flex gap-2">
           {STEPS.map((_, i) => (
