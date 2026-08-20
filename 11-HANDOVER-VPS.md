@@ -257,7 +257,33 @@ pindah.
 
 ---
 
-## 8. Uji asap setelah pindah
+## 8. Trial dan migrasi bisa jalan bersamaan
+
+Karena database tidak ikut pindah, penyiapan VPS dan uji coba aplikasi **tidak saling
+menunggu**. Keduanya menunjuk Supabase yang sama.
+
+| Jalur | Siapa | Kapan |
+|---|---|---|
+| Trial: isi program, harga, CS, CSV iklan; pakai aplikasinya | Maszen, di Vercel | sekarang |
+| Siapkan VPS: Node, build, systemd, nginx, TLS | Hermes | sekarang, paralel |
+| Tambah domain VPS di Supabase Auth URL | Maszen | sebelum DNS |
+| Pindah DNS | bersama | setelah dua jalur di atas selesai |
+| Matikan Vercel | Hermes | setelah beberapa jam tenang |
+
+Data yang dimasukkan Maszen selama trial **langsung terlihat** dari VPS begitu VPS menyala —
+tidak ada yang perlu disalin ulang, tidak ada yang perlu diulang. Trial di Vercel hari ini
+adalah trial untuk VPS juga.
+
+Satu-satunya langkah yang butuh koordinasi adalah pemindahan DNS. Sebelum itu, keduanya bisa
+berjalan tanpa saling mengganggu.
+
+Yang tidak boleh paralel: **jangan menjalankan migrasi database dari dua tempat sekaligus.**
+Tidak ada ledger yang menahan tabrakan (§3). Kalau ada migrasi baru selama masa ini, satu
+orang saja yang menjalankannya.
+
+---
+
+## 9. Uji asap setelah pindah
 
 Urutan ini menyentuh setiap lapis yang bisa rusak karena pemindahan, dari luar ke dalam.
 
