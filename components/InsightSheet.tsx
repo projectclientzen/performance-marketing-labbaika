@@ -51,7 +51,11 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
     try {
       await apiFetch(`/api/lead-reports/${leadReportId}/insights`, {
         method: "PUT",
-        body: JSON.stringify({ insights }),
+        // stages: the two tabs this sheet manages, sent explicitly so a
+        // cs zeroing out every category (insights becomes []) still clears
+        // the stored rows instead of leaving stale insight data behind
+        // (10-AUDIT-FE-BE.md #6).
+        body: JSON.stringify({ stages: ["consultation", "offering"], insights }),
       });
       onClose();
     } finally {
