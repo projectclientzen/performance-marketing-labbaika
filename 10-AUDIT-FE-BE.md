@@ -36,7 +36,8 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
 | **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
-| **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode selesai (`23944f9`) — **migrasi 024 belum dijalankan** |
+| **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode + test (`23944f9`, `c342872`) — **migrasi 024 belum dijalankan ke produksi** |
+| **22** | **023 membuang nama trigger yang salah — setiap INSERT closing akan rusak** | S0 | DB | ✅ `c342872` (ketahuan dari dry-run lokal) |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
 
@@ -892,3 +893,55 @@ penyaringannya ke dalam fungsi. Filter di route dipertahankan sebagai lapis kedu
 - Role `advertiser` (advertiser + owner satu akses) belum ditambahkan. Sengaja ditunda
   sampai 023 mendarat, karena menambah nilai enum `user_role` lebih murah dilakukan
   sekarang selagi `app_users` masih kosong.
+
+
+---
+
+## 22. S0 — 023 membuang nama trigger yang salah, dan `if exists` menyembunyikannya
+
+Ditemukan dengan menjalankan seluruh rantai 001–024 ke database Postgres lokal sekali-pakai
+sebelum menyentuh produksi. Ini pertama kalinya hal itu dilakukan di proyek ini, dan
+langsung berbuah.
+
+Versi pertama migrasi 023 menulis:
+
+```sql
+drop trigger if exists trg_lock_cost_at_transaction on closings;
+drop function if exists lock_cost_at_transaction();
+```
+
+Nama sebenarnya di migrasi 008 adalah `trg_b3_lock_cost_at_closing` dan
+`lock_cost_at_closing()`. Karena keduanya dibungkus `if exists`, **Postgres tidak berkata
+apa-apa**: migrasinya melaporkan sukses, triggernya selamat, lalu setiap `INSERT` ke
+`closings` gagal dengan `relation "program_costs" does not exist` — sebab 023 baru saja
+membuang tabel yang dibaca trigger itu.
+
+Dampaknya kalau lolos ke produksi: **CS tidak bisa menyimpan closing sama sekali.** Persis
+S0-02 lagi, dari sebab yang berbeda.
+
+Delapan dari 17 berkas test SQL merah karenanya. Yang menarik: kesalahannya tidak muncul di
+migrasi mana pun — muncul di test yang menyisipkan closing, berjarak jauh dari penyebabnya.
+
+**Yang diperbaiki:** nama drop dibetulkan, dan langkah 2 di 023 sekarang ditutup blok
+verifikasi yang melempar exception kalau masih ada fungsi menyebut `program_costs`, kalau
+tabelnya masih ada, atau kalau kolom biaya masih tersisa di `closings`. Salah ketik nama
+sekarang gagal di dalam migrasinya, bukan berhari-hari kemudian saat dipakai.
+
+**Pelajarannya lebih luas dari satu salah ketik.** `drop ... if exists` diam untuk dua hal
+yang sangat berbeda: objek yang memang sudah tidak ada, dan nama yang salah tulis. Setiap
+`drop ... if exists` atas nama yang diketik manual perlu pasangan verifikasi, atau ia
+menjadi tempat sembunyi.
+
+### Status verifikasi SQL
+
+Seluruh suite dijalankan terhadap database yang dibangun dari nol (bootstrap + 001–024):
+
+| | |
+|---|---|
+| berkas | **18 lulus, 0 gagal** |
+| assertion | ~67 |
+
+Ini pertama kalinya seluruh rantai migrasi dan seluruh test SQL terbukti konsisten dalam
+satu database. Perlu diingat batasannya: ini Postgres lokal dengan `auth.uid()` tiruan dari
+`tests/sql/000_bootstrap.sql`, bukan Supabase sungguhan. Yang terbukti adalah logika schema,
+RLS, dan guard fungsi. Yang belum: perilaku GoTrue, PostgREST, dan grant di project nyata.
