@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
-import { formatDateID } from "@/lib/utils/date";
+import { formatDateID, todayJakarta } from "@/lib/utils/date";
 import { Banner } from "@/components/ui/Banner";
 
 interface Program {
@@ -34,7 +34,21 @@ export default function ProgramsPage() {
   const [prices, setPrices] = useState<PriceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [newProgram, setNewProgram] = useState({ name: "", destination: "", duration_days: 9 });
+  // Harga ikut di form pembuatan program. Sebelumnya program harus disimpan
+  // dulu, dipilih lagi, baru harganya diisi di panel terpisah — tiga langkah
+  // untuk satu hal, dan program tanpa harga sama sekali tidak bisa dipakai CS
+  // karena pencarian harga di form closing selalu gagal.
+  //
+  // Quad wajib: itu harga acuan program. Triple dan double opsional — diisi
+  // belakangan kalau memang ada yang mendaftar di tipe itu.
+  const [newProgram, setNewProgram] = useState({
+    name: "",
+    destination: "",
+    duration_days: 9,
+    quad: "",
+    triple: "",
+    double: "",
+  });
   const [newDeparture, setNewDeparture] = useState({ departure_date: "" });
   // price sengaja string kosong, bukan 0: input number yang sudah berisi 0
   // menyembunyikan placeholder "Harga", jadi kolomnya terbaca sudah terisi —
@@ -94,10 +108,38 @@ export default function ProgramsPage() {
 
   async function addProgram() {
     setError(null);
+    if (!newProgram.quad.trim()) {
+      setError("Harga Quad wajib diisi — tanpa harga, program ini tidak bisa dipakai CS saat mencatat closing.");
+      return;
+    }
     try {
-      await apiFetch("/api/programs", { method: "POST", body: JSON.stringify(newProgram) });
-      setNewProgram({ name: "", destination: "", duration_days: 9 });
+      const program = await apiFetch<{ id: string }>("/api/programs", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newProgram.name,
+          destination: newProgram.destination,
+          duration_days: newProgram.duration_days,
+        }),
+      });
+
+      // Harga dibuat menyusul lewat endpoint harga — program dan harga tabel
+      // terpisah, jadi tidak ada satu endpoint yang menerima keduanya. Kalau
+      // salah satu harga gagal, programnya sudah terlanjur ada; pesannya
+      // menyebut itu supaya tidak dikira gagal seluruhnya.
+      const hariIni = todayJakarta();
+      const hargaBaru = ([["quad", newProgram.quad], ["triple", newProgram.triple], ["double", newProgram.double]] as const)
+        .filter(([, nilai]) => nilai.trim() !== "");
+
+      for (const [room_type, nilai] of hargaBaru) {
+        await apiFetch(`/api/programs/${program.id}/prices`, {
+          method: "POST",
+          body: JSON.stringify({ room_type, price: Number(nilai), effective_date: hariIni }),
+        });
+      }
+
+      setNewProgram({ name: "", destination: "", duration_days: 9, quad: "", triple: "", double: "" });
       loadPrograms();
+      loadDetail(program.id);
     } catch (e) {
       setError(pesanError(e, "Gagal menambah program"));
     }
@@ -164,6 +206,36 @@ export default function ProgramsPage() {
           <input placeholder="Nama" value={newProgram.name} onChange={(e) => setNewProgram((s) => ({ ...s, name: e.target.value }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
           <input placeholder="Destinasi" value={newProgram.destination} onChange={(e) => setNewProgram((s) => ({ ...s, destination: e.target.value }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
           <input type="number" placeholder="Durasi (hari)" value={newProgram.duration_days} onChange={(e) => setNewProgram((s) => ({ ...s, duration_days: parseInt(e.target.value, 10) || 0 }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
+          <div className="mt-1 space-y-2 border-t border-line pt-2">
+            <p className="text-xs text-ink-400">Harga per tipe kamar</p>
+            <input
+              type="number"
+              min={1}
+              placeholder="Quad (wajib)"
+              value={newProgram.quad}
+              onChange={(e) => setNewProgram((s) => ({ ...s, quad: e.target.value }))}
+              className="h-9 w-full rounded-lg border border-line px-2 font-mono text-sm"
+            />
+            <input
+              type="number"
+              min={1}
+              placeholder="Triple (opsional)"
+              value={newProgram.triple}
+              onChange={(e) => setNewProgram((s) => ({ ...s, triple: e.target.value }))}
+              className="h-9 w-full rounded-lg border border-line px-2 font-mono text-sm"
+            />
+            <input
+              type="number"
+              min={1}
+              placeholder="Double (opsional)"
+              value={newProgram.double}
+              onChange={(e) => setNewProgram((s) => ({ ...s, double: e.target.value }))}
+              className="h-9 w-full rounded-lg border border-line px-2 font-mono text-sm"
+            />
+            <p className="text-[11px] text-ink-400">
+              Berlaku mulai hari ini. Triple dan double bisa ditambahkan belakangan.
+            </p>
+          </div>
           <button type="button" onClick={addProgram} className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass">
             Tambah
           </button>
@@ -180,7 +252,7 @@ export default function ProgramsPage() {
                   <span className="font-mono text-ink-900">{formatDateID(d.departure_date)}</span>
                   <button
                     type="button"
-                    onClick={() => hapus(`/api/programs/${selected}/departures?id=${d.id}`, "Gagal menghapus keberangkatan")}
+                    onClick={() => hapus(`/api/programs/${selected}/departures/${d.id}`, "Gagal menghapus keberangkatan")}
                     aria-label={`Hapus keberangkatan ${formatDateID(d.departure_date)}`}
                     className="rounded-lg px-2 text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
                   >
@@ -259,7 +331,7 @@ export default function ProgramsPage() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => hapus(`/api/programs/${selected}/prices?id=${pr.id}`, "Gagal menghapus harga")}
+                        onClick={() => hapus(`/api/programs/${selected}/prices/${pr.id}`, "Gagal menghapus harga")}
                         aria-label={`Hapus harga ${pr.room_type}`}
                         className="rounded-lg px-2 text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
                       >
