@@ -33,7 +33,8 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 25 | **Keputusan produk 20 Agu: CPP/ROI per-CS dibatalkan, nomor WA CS ditambahkan** | lingkup | — | 📌 tercatat |
 | 13 | `brand_settings` tanpa halaman — break-even CPP tak bisa diatur | S2 | FE | ⬜ |
 | 14 | Import ads level adset/ad selalu gagal | S2 | FE atau BE | ⬜ |
-| 15 | Tidak ada cara menambah user baru | S2 | BE | 🔄 dibuka keputusan Maszen — form tambah CS (nama/WA/email) sedang dibangun `-23` |
+| 15 | Tidak ada cara menambah user baru | S2 | BE | ✅ `7e9ef99`+`8bf916d`+`0d828b3` — form tambah CS, pakai invite link |
+| 26 | **Tidak ada alur ganti / lupa password** | S2 | FE+BE | ⬜ "Lupa password" di login masih `href="#"` |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
 | **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
 | 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
@@ -1110,3 +1111,34 @@ Batasan yang ditetapkan untuk pengerjaannya:
   konsisten di seluruh sistem.
 - `POST /api/users` memakai service role **hanya** untuk membuat identitas auth. Insert ke
   `app_users` tetap lewat klien pemanggil supaya RLS yang menentukan `brand_id`-nya.
+
+
+---
+
+## 26. S2 — Tidak ada alur ganti atau lupa password
+
+Ditemukan sesi `-23` saat membangun form tambah user (#15): tautan "Lupa password" di
+`app/login/page.tsx` isinya `href="#"`. Tidak ada halaman reset, tidak ada cara mengganti
+password dari dalam aplikasi.
+
+**Ini sempat hampir menjadi jauh lebih buruk.** Rancangan pertama `POST /api/users`
+membuat password acak, menampilkannya sekali ke owner, lalu owner meneruskannya ke CS lewat
+WhatsApp. Digabung dengan tidak adanya alur ganti password, hasilnya:
+
+- CS tidak akan pernah bisa menggantinya
+- passwordnya menetap selamanya di riwayat chat WhatsApp
+- HP dipinjam, dijual, atau chat di-forward — kredensialnya ikut
+
+Itu bukan kekurangan yang bisa ditunda; itu kredensial permanen yang beredar di kanal yang
+tidak dikendalikan sistem. Ditahan sebelum masuk `main`.
+
+Gantinya `admin.auth.admin.generateLink({ type: "invite" })`: tautan sekali pakai yang
+kedaluwarsa, dan CS menetapkan sendiri passwordnya. Alur owner tidak berubah — tetap
+meneruskan lewat WhatsApp — tapi tidak pernah ada password yang sistem ketahui, tampilkan,
+atau titipkan ke chat. `generateLink` juga tidak mengirim email sendiri, jadi tidak menuntut
+SMTP dikonfigurasi.
+
+**Yang tersisa:** CS yang lupa passwordnya tetap tidak punya jalan keluar selain minta owner
+membuatkan tautan baru. Belum mendesak sesudah invite link masuk, tapi tetap lubang nyata.
+Perbaikannya kecil — `supabase.auth.resetPasswordForEmail()` plus satu halaman untuk
+menetapkan password baru — dan butuh SMTP aktif di project Supabase.
