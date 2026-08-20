@@ -88,9 +88,11 @@ export default function LoginPage() {
           </p>
         )}
 
-        <a href="#" className="block text-[13px] text-on-dark-muted">
-          Lupa password
-        </a>
+        {/* 10-AUDIT-FE-BE.md #26: there's no self-serve reset page (no
+            SMTP, no reset route) -- a link here would do nothing. Owner
+            can generate a one-time reset link from Manajemen user
+            (app/owner/settings/users) and relay it directly. */}
+        <p className="text-[13px] text-on-dark-muted">Lupa password? Hubungi owner untuk reset.</p>
 
         <button
           type="submit"

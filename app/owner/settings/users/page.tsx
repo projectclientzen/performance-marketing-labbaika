@@ -23,7 +23,8 @@ export default function UserManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
-  const [invite, setInvite] = useState<{ email: string; link: string } | null>(null);
+  const [linkBanner, setLinkBanner] = useState<{ label: string; link: string } | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   function load() {
     apiFetch<UserRow[]>("/api/users").then(setUsers).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
@@ -38,7 +39,10 @@ export default function UserManagementPage() {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setInvite({ email: created.email, link: created.invite_link });
+      setLinkBanner({
+        label: `Akun ${created.email} dibuat. Tautan undangan (sekali pakai, CS menetapkan passwordnya sendiri):`,
+        link: created.invite_link,
+      });
       setForm(emptyForm);
       setShowForm(false);
       load();
@@ -64,6 +68,24 @@ export default function UserManagementPage() {
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal mengubah role");
+    }
+  }
+
+  async function resetPassword(u: UserRow) {
+    setResettingId(u.id);
+    setError(null);
+    try {
+      const result = await apiFetch<{ reset_link: string }>(`/api/users/${u.id}/reset-password`, {
+        method: "POST",
+      });
+      setLinkBanner({
+        label: `Tautan reset password untuk ${u.full_name} (sekali pakai):`,
+        link: result.reset_link,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal membuat tautan reset");
+    } finally {
+      setResettingId(null);
     }
   }
 
@@ -109,13 +131,23 @@ export default function UserManagementPage() {
       header: "",
       accessor: () => null,
       render: (u) => (
-        <button
-          type="button"
-          onClick={() => toggleActive(u)}
-          className="h-9 rounded-lg border border-line px-3 text-sm font-medium"
-        >
-          {u.is_active ? "Nonaktifkan" : "Aktifkan"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => resetPassword(u)}
+            disabled={resettingId === u.id}
+            className="h-9 rounded-lg border border-line px-3 text-sm font-medium disabled:opacity-50"
+          >
+            {resettingId === u.id ? "Membuat..." : "Reset password"}
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleActive(u)}
+            className="h-9 rounded-lg border border-line px-3 text-sm font-medium"
+          >
+            {u.is_active ? "Nonaktifkan" : "Aktifkan"}
+          </button>
+        </div>
       ),
     },
   ];
@@ -134,22 +166,19 @@ export default function UserManagementPage() {
       </div>
       {error && <Banner variant="danger">{error}</Banner>}
 
-      {invite && (
+      {linkBanner && (
         <Banner variant="ok">
-          <p>
-            Akun {invite.email} dibuat. Kirim tautan undangan ini ke CS lewat WA — sekali pakai, kedaluwarsa,
-            CS menetapkan passwordnya sendiri saat membuka tautan.
-          </p>
+          <p>{linkBanner.label} Kirim lewat WA.</p>
           <div className="mt-2 flex items-center gap-2">
             <input
               readOnly
-              value={invite.link}
+              value={linkBanner.link}
               onFocus={(e) => e.target.select()}
               className="h-9 flex-1 rounded-lg border border-line bg-paper px-2 font-mono text-xs"
             />
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(invite.link)}
+              onClick={() => navigator.clipboard.writeText(linkBanner.link)}
               className="h-9 shrink-0 rounded-lg border border-line px-3 text-xs font-medium"
             >
               Salin
