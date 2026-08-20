@@ -79,26 +79,26 @@ const postSchema = z.object({
   role: z.enum(["owner", "advertiser", "cs"]).default("cs"),
 });
 
-function randomTempPassword(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-}
-
 /**
  * 10-AUDIT-FE-BE.md #15: creating the first CS/owner identity has always
- * needed the Supabase dashboard directly. admin.createUser is the only way
- * to make an auth identity server-side — but the app_users row (brand_id,
- * role) is still inserted through the CALLER's own client, not the admin
- * one, so RLS decides whether this owner is allowed to add a user to their
- * own brand. Service role here only ever creates the login identity; it
- * never gets to decide who belongs to which brand.
+ * needed the Supabase dashboard directly. admin.generateLink({type:
+ * "invite"}) both creates the auth identity AND returns a one-time,
+ * expiring action_link that lets the new user set their own password —
+ * unlike admin.createUser + a generated temp password, which would put a
+ * permanent, owner-known credential into a WhatsApp chat history with no
+ * way for the CS to ever change it. This app has no email delivery wired
+ * up (checked: no SMTP/invite flow, "Lupa password" on login is a dead
+ * `href="#"`), so generateLink's link is still relayed out-of-band by the
+ * owner — the difference is what's inside it.
  *
- * No email delivery is configured anywhere in this app (checked: no SMTP/
- * invite flow, "Lupa password" on the login page is a dead link) — so
- * there's no way to send the new CS a magic link or reset email. A random
- * temporary password is generated and returned ONCE in this response for
- * the owner to relay out-of-band (WhatsApp, in person). There's no
- * password-change UI for the CS to then use, which is a real gap — noted,
- * not solved here, since building one wasn't part of what was asked for.
+ * The app_users row (brand_id, role, whatsapp) is inserted through the
+ * CALLER's own client, not the admin one, so RLS decides whether this
+ * owner is allowed to add a user to their own brand. Service role here
+ * only ever creates the login identity; it never gets to decide who
+ * belongs to which brand — brand_id never comes from the request body.
+ *
+ * There's still no password-change/reset UI for a CS to use after their
+ * first login — a real gap, not solved here since it wasn't asked for.
  */
 export async function POST(request: Request) {
   const { user, appUser, supabase } = await getAuthedAppUser();
@@ -129,12 +129,10 @@ export async function POST(request: Request) {
   }
 
   const whatsapp = normalizePhoneID(parsed.data.whatsapp);
-  const tempPassword = randomTempPassword();
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
+  const { data: created, error: createError } = await admin.auth.admin.generateLink({
+    type: "invite",
     email: parsed.data.email,
-    password: tempPassword,
-    email_confirm: true,
   });
   if (createError || !created.user) {
     return NextResponse.json(fail("VALIDATION_ERROR", createError?.message ?? "Gagal membuat akun"), {
@@ -167,7 +165,9 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json(ok({ ...appUserRow, email: parsed.data.email, temp_password: tempPassword }));
+  return NextResponse.json(
+    ok({ ...appUserRow, email: parsed.data.email, invite_link: created.properties.action_link }),
+  );
 }
 
 const patchSchema = z.object({

@@ -23,7 +23,7 @@ export default function UserManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
-  const [tempPassword, setTempPassword] = useState<{ email: string; password: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; link: string } | null>(null);
 
   function load() {
     apiFetch<UserRow[]>("/api/users").then(setUsers).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
@@ -34,11 +34,11 @@ export default function UserManagementPage() {
     setCreating(true);
     setError(null);
     try {
-      const created = await apiFetch<{ email: string; temp_password: string }>("/api/users", {
+      const created = await apiFetch<{ email: string; invite_link: string }>("/api/users", {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setTempPassword({ email: created.email, password: created.temp_password });
+      setInvite({ email: created.email, link: created.invite_link });
       setForm(emptyForm);
       setShowForm(false);
       load();
@@ -134,11 +134,27 @@ export default function UserManagementPage() {
       </div>
       {error && <Banner variant="danger">{error}</Banner>}
 
-      {tempPassword && (
+      {invite && (
         <Banner variant="ok">
-          Akun {tempPassword.email} dibuat. Password sementara:{" "}
-          <span className="font-mono font-semibold">{tempPassword.password}</span> — sampaikan ke CS lewat WA,
-          belum ada alur ganti password di aplikasi.
+          <p>
+            Akun {invite.email} dibuat. Kirim tautan undangan ini ke CS lewat WA — sekali pakai, kedaluwarsa,
+            CS menetapkan passwordnya sendiri saat membuka tautan.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              readOnly
+              value={invite.link}
+              onFocus={(e) => e.target.select()}
+              className="h-9 flex-1 rounded-lg border border-line bg-paper px-2 font-mono text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => navigator.clipboard.writeText(invite.link)}
+              className="h-9 shrink-0 rounded-lg border border-line px-3 text-xs font-medium"
+            >
+              Salin
+            </button>
+          </div>
         </Banner>
       )}
 
