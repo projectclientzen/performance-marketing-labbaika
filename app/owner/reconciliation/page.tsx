@@ -51,8 +51,11 @@ export default function ReconciliationPage() {
     Promise.all([
       apiFetch<UnlinkedClosing[]>("/api/closings/unlinked"),
       apiFetch<{ id: string; cs_id: string }[]>(`/api/lead-reports?date=${todayJakarta()}`),
-      apiFetch<{ cs_id: string; cs_name: string }[]>("/api/dashboard/cs-performance").then((rows) =>
-        rows.map((r) => ({ id: r.cs_id, full_name: r.cs_name })),
+      // 10-AUDIT-FE-BE.md #17: /api/dashboard/cs-performance doesn't filter
+      // is_active, so a disabled cs shows up as "belum lapor" forever.
+      // /api/users already returns is_active + role and is owner-only.
+      apiFetch<{ id: string; full_name: string; role: string; is_active: boolean }[]>("/api/users").then((rows) =>
+        rows.filter((u) => u.role === "cs" && u.is_active),
       ),
     ])
       .then(([unlinkedData, reportsToday, allCs]) => {
