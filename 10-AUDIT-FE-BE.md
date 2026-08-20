@@ -35,7 +35,8 @@ Severity mengikuti `07-AUDIT-REPO.md`:
 | 15 | Tidak ada cara menambah user baru | S2 | BE | ⬜ |
 | 16 | `error.message` mentah masih dikirim di ~15 route | S1 | BE | ✅ `17edd27` (16 route) + `9a9d744` (sisa) |
 | **20** | **HPP/gross profit di luar lingkup — sistem diformulasikan ulang di atas omset** | perubahan lingkup | DB+BE+FE | ✅ kode selesai (`93b328f` DB, `4b9d995` BE, `684280d` FE) — **migrasi 023 belum dijalankan ke database** |
-| 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | ⬜ terhalang #15 (tidak ada `POST /api/users`) |
+| 19 | `app_users` kosong — belum ada owner/CS, aplikasi belum bisa dipakai siapa pun | S1 | ops | 🔄 auth user sudah dibuat, baris `app_users` belum |
+| **21** | **Role `advertiser` — akses setara owner, satu dashboard utama** | perubahan lingkup | DB+BE | ✅ kode selesai (`23944f9`) — **migrasi 024 belum dijalankan** |
 | 17 | Daftar "CS belum lapor" ikut memuat CS non-aktif | S2 | FE | ⬜ |
 | **18** | **Harness `tests/sql/*` tidak pernah mengaktifkan identitas — seluruh assertion per-role tidak sahih** | **S1** | test | ⬜ 021 sudah benar, 14 berkas lain belum |
 
@@ -109,7 +110,60 @@ sementara lebih dulu.
 
 Terhalang temuan #15: `/api/users` tidak punya `POST`, jadi pengguna pertama harus dibuat
 lewat dashboard Supabase (Authentication → Add user), lalu barisnya dimasukkan manual ke
-`app_users` dengan `brand_id` milik brand yang ada dan `role = 'owner'`.
+`app_users`.
+
+**Per 20 Agustus, separuh sudah dikerjakan.** Maszen membuat satu akun di Authentication:
+
+| | |
+|---|---|
+| `auth.users.id` | `98cf8dcd-a90e-40b2-9350-155e0a19ea8b` |
+| email | `projectclientzen@gmail.com` (terkonfirmasi) |
+| brand tujuan | `14e9cf99-e612-4885-a1e9-6c5a6ebc8399` — Labbaika Group |
+
+Baris `app_users`-nya **belum ada**, jadi login akan berhasil di GoTrue tapi `/api/me`
+membalas `NOT_FOUND "Profil pengguna tidak ditemukan"`, dan seluruh RLS mengembalikan nol
+baris karena `current_brand_id()` NULL. Satu statement yang kurang — dijalankan **setelah**
+migrasi 024, supaya `role` bisa langsung diisi `advertiser`:
+
+```sql
+insert into app_users (id, brand_id, full_name, role)
+values ('98cf8dcd-a90e-40b2-9350-155e0a19ea8b',
+        '14e9cf99-e612-4885-a1e9-6c5a6ebc8399',
+        'Maszen', 'advertiser');
+```
+
+---
+
+## 21. Role `advertiser` — akses setara owner
+
+> "role advertiser ini pov nya sama kaya role owner, jadi cukup 1 dashboard utama aja"
+
+Bukan tingkat akses ketiga dengan aturan sendiri: advertiser dan owner melihat dashboard
+yang sama, yang membedakan hanya sebutan jabatannya. `cs` tetap berdiri sendiri — satu CS
+tidak boleh melihat pekerjaan CS lain (dijaga migrasi 023, lihat §20b).
+
+**Jalan pintas yang tidak diambil:** membuat `current_app_role()` mengembalikan `'owner'`
+untuk advertiser. Itu membuat 21 policy tidak perlu disentuh sama sekali, tapi policy yang
+tertulis `= 'owner'` lalu diam-diam bernilai benar untuk advertiser adalah jebakan buat
+pembaca berikutnya, dan membuat `audit_logs` mencatat peran yang salah.
+
+**Yang dikerjakan (migrasi 024 + `23944f9`):** nilai enum `advertiser` ditambahkan, fungsi
+`current_has_owner_access()` dibuat, lalu 21 policy dan 6 guard fungsi dibuat ulang
+memakainya. Badan query keenam fungsi tidak disentuh — hanya baris `IF` di kepalanya.
+
+Perbandingannya lewat `::text`, bukan literal enum. Postgres melarang memakai nilai enum
+yang baru ditambahkan di transaksi yang sama, jadi menulis
+`current_app_role() in ('owner','advertiser')` justru membuat migrasinya gagal.
+
+Di sisi TypeScript, `lib/auth/roles.ts` adalah satu-satunya cerminan fungsi SQL itu, dan
+keduanya harus selalu sepakat. 18 route handler, middleware, redirect login, dan layar
+manajemen user sekarang lewat `hasOwnerAccess()`, bukan membandingkan ke literal `"owner"`.
+Fungsi itu menolak `undefined`, `null`, `""`, dan string tak dikenal alih-alih membuka
+akses, serta diuji terhadap properti prototipe (`constructor`, `toString`) — jebakan
+operator `in` yang sama seperti pada validasi status export.
+
+Pengecekan di TypeScript bukan batas keamanan; RLS dan guard di dalam fungsi SQL yang
+menjaga sungguhan.
 
 `npm run typecheck` dan `npm test` hijau (84 test).
 

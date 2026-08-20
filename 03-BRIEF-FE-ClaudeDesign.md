@@ -1,5 +1,24 @@
 # Brief Frontend: Labbaika Reporting Platform
 
+> **KOREKSI LINGKUP — 20 Agustus 2026. Baca sebelum membangun apa pun dari dokumen ini.**
+>
+> Seluruh pembahasan **HPP, gross profit, margin, dan break-even berbasis biaya**
+> di dokumen ini **sudah dibatalkan** dan **tidak boleh dibangun**. Pemilik produk
+> adalah advertiser, bukan bagian keuangan: yang diukur sistem ini adalah
+> efektivitas iklan di atas **omset**, bukan margin.
+>
+> Yang berlaku sekarang: `roi = (omset − spend) / spend`, `roas = omset / spend`,
+> `breakeven_cpp = omset / jumlah closing`. Tidak ada `gross_profit`,
+> `margin_pct`, `cost_coverage_rate`, tabel `program_costs`, maupun trigger T-7.
+> Harga program masuk lingkup; HPP program tidak.
+>
+> Ditambahkan juga role `advertiser`, dengan akses setara `owner` — satu
+> dashboard utama untuk keduanya.
+>
+> Rinciannya di `10-AUDIT-FE-BE.md` §20 dan §21. Kalau dokumen ini dan berkas itu
+> berbeda, **berkas itu yang menang.**
+
+
 Untuk dikerjakan di **Claude Design**.
 Output yang diharapkan: prototipe visual berfungsi dengan data mock, belum tersambung backend.
 Sumber kebenaran produk: `02-PRD-v1.1.md`.
