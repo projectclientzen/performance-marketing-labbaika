@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  leadReportBlockSchema,
-  leadReportPayloadSchema,
-  leadReportPayloadSchemaCS,
-} from './report';
+import { leadReportBlockSchema, leadReportPayloadSchema } from './report';
 import { todayJakarta } from '../utils/date';
 
 const validBlock = {
@@ -55,9 +51,9 @@ describe('DS-13 lead report schema', () => {
     expect(r.success).toBe(true);
   });
 
-  it('payload CS: lebih dari 7 hari ke belakang ditolak', () => {
+  it('payload: tanggal jauh ke belakang tetap diterima — CS tidak dibatasi tenggang waktu (10-AUDIT-FE-BE.md #10)', () => {
     const old = '2020-01-01';
-    const r = leadReportPayloadSchemaCS.safeParse({ date: old, blocks: [validBlock] });
-    expect(r.success).toBe(false);
+    const r = leadReportPayloadSchema.safeParse({ date: old, blocks: [validBlock] });
+    expect(r.success).toBe(true);
   });
 });

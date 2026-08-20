@@ -46,7 +46,17 @@ const dateNotFuture = (val: string, ctx: z.RefinementCtx) => {
   }
 };
 
-/** Umum: date tidak boleh masa depan. */
+// Dulu ada dua skema di sini -- ini (umum) dan leadReportPayloadSchemaCS
+// (date maksimal 7 hari ke belakang). Keputusan produk (Maszen,
+// 10-AUDIT-FE-BE.md #10): "untuk cs bisa ubah report gausah dikasih
+// tenggang waktu" -- batas 7 hari dibuang. Setelah itu kedua skema jadi
+// identik, jadi digabung jadi satu; dua nama untuk satu aturan cuma
+// mengundang keduanya diam-diam berbeda lagi nanti. `date` tidak boleh
+// masa depan tetap berlaku untuk semua role -- itu bukan bagian dari
+// tenggang waktu yang dihapus, itu invariant terpisah (tidak ada yang
+// bisa melaporkan hari yang belum terjadi). Penguncian periode (T-4) juga
+// tetap berlaku, tidak berhubungan dengan skema ini sama sekali -- itu
+// constraint di sisi database, bukan Zod.
 export const leadReportPayloadSchema = z
   .object({
     date: z.string().date('Format tanggal YYYY-MM-DD'),
@@ -56,25 +66,3 @@ export const leadReportPayloadSchema = z
   .superRefine((val, ctx) => dateNotFuture(val.date, ctx));
 
 export type LeadReportPayload = z.infer<typeof leadReportPayloadSchema>;
-
-/** Khusus role CS: date maksimal 7 hari ke belakang. */
-export const leadReportPayloadSchemaCS = z
-  .object({
-    date: z.string().date('Format tanggal YYYY-MM-DD'),
-    cs_id: z.string().uuid().optional(),
-    blocks: z.array(leadReportBlockSchema).min(1, 'Minimal satu block'),
-  })
-  .superRefine((val, ctx) => {
-    dateNotFuture(val.date, ctx);
-    const minDate = new Date();
-    minDate.setUTCDate(minDate.getUTCDate() - 7);
-    if (val.date < minDate.toISOString().slice(0, 10)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['date'],
-        message: 'date tidak boleh lebih dari 7 hari ke belakang',
-      });
-    }
-  });
-
-export type LeadReportPayloadCS = z.infer<typeof leadReportPayloadSchemaCS>;

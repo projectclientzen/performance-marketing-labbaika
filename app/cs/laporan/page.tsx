@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { todayJakarta } from "@/lib/utils/date";
 import { NumberStepper } from "@/components/ui/NumberStepper";
@@ -22,18 +22,44 @@ interface Block {
   offering: number;
 }
 
+interface LeadReport {
+  id: string;
+  report_date: string;
+  source_id: string;
+  total_lead: number;
+  cold: number;
+  consultation: number;
+  offering: number;
+}
+
 function emptyBlock(sourceId: string): Block {
   return { source_id: sourceId, total_lead: 0, cold: 0, consultation: 0, offering: 0 };
 }
 
 export default function LaporanHarianPage() {
+  return (
+    <Suspense>
+      <LaporanHarianForm />
+    </Suspense>
+  );
+}
+
+function LaporanHarianForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // 10-AUDIT-FE-BE.md #10: ?id= puts the form in edit mode for one past
+  // report. A report row is one source, so edit mode always has exactly
+  // one block — "Tambah source" and changing the date/source don't apply
+  // to editing an existing row (PATCH /api/lead-reports/:id only accepts
+  // cold/consultation/offering/total_lead, not date or source_id).
+  const editId = searchParams.get("id");
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [date, setDate] = useState(todayJakarta());
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(!!editId);
   // S1-03: idempotency key dibuat SEKALI per pengisian form (bukan per klik),
   // supaya klik ganda / retry kirim key yang sama dan tidak lolos cek duplikat.
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
@@ -46,9 +72,28 @@ export default function LaporanHarianPage() {
   useEffect(() => {
     apiFetch<LeadSource[]>("/api/master/sources").then((data) => {
       setSources(data);
-      if (data.length > 0) setBlocks([emptyBlock(data[0].id)]);
+      if (!editId && data.length > 0) setBlocks([emptyBlock(data[0].id)]);
     });
-  }, []);
+  }, [editId]);
+
+  useEffect(() => {
+    if (!editId) return;
+    apiFetch<LeadReport>(`/api/lead-reports/${editId}`)
+      .then((r) => {
+        setDate(r.report_date);
+        setBlocks([
+          {
+            source_id: r.source_id,
+            total_lead: r.total_lead,
+            cold: r.cold,
+            consultation: r.consultation,
+            offering: r.offering,
+          },
+        ]);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat laporan"))
+      .finally(() => setLoadingEdit(false));
+  }, [editId]);
 
   function updateBlock(index: number, patch: Partial<Block>) {
     setBlocks((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
@@ -70,6 +115,27 @@ export default function LaporanHarianPage() {
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+    if (editId) {
+      try {
+        const block = blocks[0];
+        await apiFetch(`/api/lead-reports/${editId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            total_lead: block.total_lead,
+            cold: block.cold,
+            consultation: block.consultation,
+            offering: block.offering,
+          }),
+        });
+        setSaved(true);
+        setTimeout(() => router.push("/cs"), 800);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Gagal menyimpan koreksi");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     try {
       const saved = await apiFetch<
         { id: string; consultation: number; offering: number }[]
@@ -114,30 +180,35 @@ export default function LaporanHarianPage() {
         <button type="button" onClick={() => router.push("/cs")} aria-label="Kembali" className="text-[22px] text-ink-600">
           ‹
         </button>
-        <h1 className="flex-1 font-display text-[17px] font-semibold text-ink-900">Laporan harian</h1>
+        <h1 className="flex-1 font-display text-[17px] font-semibold text-ink-900">
+          {editId ? "Koreksi laporan" : "Laporan harian"}
+        </h1>
         <input
           type="date"
           value={date}
           max={todayJakarta()}
+          disabled={!!editId}
           onChange={(e) => setDate(e.target.value)}
-          className="h-9 rounded-lg border border-line bg-paper px-2 text-[13px]"
+          className="h-9 rounded-lg border border-line bg-paper px-2 text-[13px] disabled:opacity-60"
         />
       </header>
 
       <div className="space-y-4 p-4">
         {error && <Banner variant="warn">{error}</Banner>}
-        {saved && <Banner variant="ok">Laporan tersimpan</Banner>}
+        {saved && <Banner variant="ok">{editId ? "Koreksi tersimpan" : "Laporan tersimpan"}</Banner>}
+        {loadingEdit && <p className="text-sm text-ink-400">Memuat laporan...</p>}
 
         <div className="space-y-4">
-          {blocks.map((block, i) => {
+          {!loadingEdit && blocks.map((block, i) => {
             const sisa = block.total_lead - (block.cold + block.consultation + block.offering);
             return (
               <div key={i} className="rounded-[10px] border border-line bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <select
                     value={block.source_id}
+                    disabled={!!editId}
                     onChange={(e) => updateBlock(i, { source_id: e.target.value })}
-                    className="h-10 rounded-lg border border-line px-2 text-sm font-semibold"
+                    className="h-10 rounded-lg border border-line px-2 text-sm font-semibold disabled:opacity-60"
                   >
                     {sources.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -145,7 +216,7 @@ export default function LaporanHarianPage() {
                       </option>
                     ))}
                   </select>
-                  {blocks.length > 1 && (
+                  {!editId && blocks.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeBlock(i)}
@@ -201,13 +272,15 @@ export default function LaporanHarianPage() {
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={addBlock}
-          className="h-[46px] w-full rounded-lg border border-dashed border-ink-400 text-[15px] font-medium text-ink-600"
-        >
-          + Tambah source
-        </button>
+        {!editId && (
+          <button
+            type="button"
+            onClick={addBlock}
+            className="h-[46px] w-full rounded-lg border border-dashed border-ink-400 text-[15px] font-medium text-ink-600"
+          >
+            + Tambah source
+          </button>
+        )}
       </div>
 
       <div className="fixed bottom-16 left-0 right-0 border-t border-line bg-card px-[18px] py-3.5 shadow-lg">
@@ -226,7 +299,7 @@ export default function LaporanHarianPage() {
             }
             className="h-[50px] rounded-lg bg-brass px-[22px] text-base font-semibold text-on-brass disabled:opacity-50"
           >
-            {submitting ? "Menyimpan..." : "Simpan laporan"}
+            {submitting ? "Menyimpan..." : editId ? "Simpan koreksi" : "Simpan laporan"}
           </button>
         </div>
       </div>

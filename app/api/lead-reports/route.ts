@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
-import { leadReportPayloadSchema, leadReportPayloadSchemaCS } from "@/lib/schemas/report";
+import { leadReportPayloadSchema } from "@/lib/schemas/report";
 
 const dateParamSchema = z.string().date("Format tanggal YYYY-MM-DD");
 
@@ -24,8 +24,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const schema = appUser.role === "cs" ? leadReportPayloadSchemaCS : leadReportPayloadSchema;
-  const parsed = schema.safeParse(rawBody);
+  const parsed = leadReportPayloadSchema.safeParse(rawBody);
 
   if (!parsed.success) {
     const fields: Record<string, string> = {};

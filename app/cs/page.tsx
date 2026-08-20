@@ -114,8 +114,8 @@ export default function CsHomePage() {
               }),
               { cold: 0, consultation: 0, offering: 0, closing: 0, total_lead: 0 },
             );
-            return (
-              <div key={day} className="flex flex-col gap-1.5">
+            const row = (
+              <div className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between">
                   <span className="text-[13px] text-ink-900">{formatDateID(day)}</span>
                   <span className="font-mono text-[13px] text-ink-600">{totals.total_lead} lead</span>
@@ -130,6 +130,18 @@ export default function CsHomePage() {
                   ]}
                 />
               </div>
+            );
+            // 10-AUDIT-FE-BE.md #10: a day is only editable when it has
+            // exactly one report row — with more than one (multiple lead
+            // sources reported the same day), there's no single row for
+            // PATCH /api/lead-reports/:id to target, so it isn't wrapped
+            // in a link rather than guessing which one.
+            return dayReports.length === 1 ? (
+              <Link key={day} href={`/cs/laporan?id=${dayReports[0].id}`}>
+                {row}
+              </Link>
+            ) : (
+              <div key={day}>{row}</div>
             );
           })}
           </div>

@@ -10,6 +10,36 @@ const patchSchema = z.object({
   total_lead: z.number().int().nonnegative().optional(),
 });
 
+// 10-AUDIT-FE-BE.md #10: without this, the edit form (app/cs/laporan)
+// has no way to load a past report's values before letting the cs
+// correct them. RLS scopes rows the same way PATCH already does — a cs's
+// own client only ever sees their own report, owner sees every report in
+// their brand.
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, supabase } = await getAuthedAppUser();
+
+  if (!user) {
+    return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
+  }
+
+  const { data, error } = await supabase.from("lead_reports").select("*").eq("id", id).maybeSingle();
+
+  if (error) {
+    console.error("[api/lead-reports/[id]] GET", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), {
+      status: httpStatus("INTERNAL_ERROR"),
+    });
+  }
+  if (!data) {
+    return NextResponse.json(fail("NOT_FOUND", "Laporan tidak ditemukan"), {
+      status: httpStatus("NOT_FOUND"),
+    });
+  }
+
+  return NextResponse.json(ok(data));
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { user, appUser, supabase } = await getAuthedAppUser();
