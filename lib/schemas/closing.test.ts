@@ -80,4 +80,29 @@ describe('DS-14 closing schema', () => {
   it('payment_status cancelled ditolak saat create (pakai endpoint cancel)', () => {
     expect(closingSchema.safeParse({ ...base, payment_status: 'cancelled' }).success).toBe(false);
   });
+
+  it('field opsional dikirim sebagai string kosong tidak ditolak (10-AUDIT-FE-BE.md #2/#3)', () => {
+    const r = closingSchema.safeParse({
+      ...base,
+      email: '',
+      last_name: '',
+      price_note: '',
+      campaign_id: '',
+      province_id: '',
+      city_id: '',
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.email).toBeUndefined();
+      expect(r.data.last_name).toBeUndefined();
+      expect(r.data.price_note).toBeUndefined();
+      expect(r.data.campaign_id).toBeUndefined();
+      expect(r.data.province_id).toBeUndefined();
+      expect(r.data.city_id).toBeUndefined();
+    }
+  });
+
+  it('email tidak valid tetap ditolak kalau bukan string kosong', () => {
+    expect(closingSchema.safeParse({ ...base, email: 'bukan-email' }).success).toBe(false);
+  });
 });
