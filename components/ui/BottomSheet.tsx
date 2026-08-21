@@ -46,7 +46,8 @@ export function BottomSheet({ open, onClose, title, children }: BottomSheetProps
         className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-[20px] bg-paper px-[18px] pb-6 pt-5 shadow-xl outline-none"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
-        {title && <h2 className="mb-3 font-display text-lg font-bold text-ink-900">{title}</h2>}
+        {/* prototype: 19px/600 (font-semibold, not font-bold). */}
+        {title && <h2 className="mb-3 font-display text-lg font-semibold text-ink-900">{title}</h2>}
         {children}
       </div>
     </div>

@@ -82,7 +82,9 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
         ))}
       </div>
 
-      <p className="mb-3 text-xs text-ink-400">
+      {/* prototype: 13px/400, ink-600 -- measured via getComputedStyle, not
+          Tailwind's default text-xs/ink-400 this used to read. */}
+      <p className="mb-3 text-[13px] text-ink-600">
         {filled} dari {stageTotal} lead {tab} sudah diberi insight
       </p>
 
@@ -98,22 +100,30 @@ export function InsightSheet({ open, onClose, leadReportId, stageCounts }: Insig
         ))}
       </div>
 
+      {/* prototype: 342x64 (h-16, not h-20), padding 10px 12px. */}
       <textarea
         placeholder="Catatan bebas (opsional)"
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        className="mt-4 h-20 w-full rounded-lg border border-line p-3 text-sm"
+        className="mt-4 h-16 w-full rounded-lg border border-line px-3 py-2.5 text-sm"
       />
 
-      <div className="mt-4 flex gap-2">
-        <button type="button" onClick={onClose} className="h-11 flex-1 rounded-lg border border-line text-sm font-medium">
+      {/* prototype: 50px tall (not 44), Lewati sized to its own content
+          rather than splitting the row evenly with Simpan -- the primary
+          action visually dominates. */}
+      <div className="mt-4 flex gap-3">
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-[50px] shrink-0 rounded-lg border border-line px-6 text-[15px] font-medium"
+        >
           Lewati
         </button>
         <button
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="h-11 flex-1 rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
+          className="h-[50px] flex-1 rounded-lg bg-brass text-[15px] font-semibold text-on-brass disabled:opacity-50"
         >
           {saving ? "Menyimpan..." : "Simpan insight"}
         </button>
