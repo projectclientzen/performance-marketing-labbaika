@@ -16,11 +16,15 @@ const NAV_ITEMS = [
 export default function CsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // pb container = tinggi bottom-nav + safe-area home-indicator iPhone, supaya
+  // konten terakhir tidak ketutup nav. Butuh viewportFit:"cover" di root.
   return (
-    <div className="min-h-screen bg-paper pb-20">
+    <div className="min-h-screen bg-paper pb-[calc(5rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-lg">{children}</div>
 
-      <nav className="fixed bottom-0 left-0 right-0 flex border-t border-line bg-card">
+      {/* pb-[env(safe-area-inset-bottom)]: bg bar mengisi area home-indicator,
+          tapi tombol tetap di atasnya — tap target tidak ketiban indicator. */}
+      <nav className="fixed bottom-0 left-0 right-0 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex w-full max-w-lg">
           {NAV_ITEMS.map((item) => {
             const active = item.href === "/cs" ? pathname === "/cs" : pathname.startsWith(item.href);
