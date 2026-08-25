@@ -100,7 +100,12 @@ export default function CsHomePage() {
         </Link>
 
         <section className="rounded-[10px] border border-line bg-card p-4">
-          <h2 className="mb-3.5 text-[13px] font-medium text-ink-600">7 hari terakhir</h2>
+          <div className="mb-3.5 flex items-center justify-between">
+            <h2 className="text-[13px] font-medium text-ink-600">7 hari terakhir</h2>
+            <Link href="/cs/laporan/riwayat" className="text-[13px] font-medium text-blue">
+              Lihat semua
+            </Link>
+          </div>
           <div className="space-y-3.5">
           {days.map((day) => {
             const dayReports = reports.filter((r) => r.report_date === day);
