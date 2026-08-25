@@ -158,12 +158,12 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 py-5 pb-24 md:px-6 md:py-6 md:pb-6">{children}</main>
+      <main className="min-w-0 flex-1 px-4 py-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-6 md:py-6 md:pb-6">{children}</main>
 
       {/* Bottom tab bar mobile — diukur dari frame mobile F-07: bg terang,
           border atas, aktif brass, nonaktif ink-400. Pola sama persis
           dengan app/cs/layout.tsx supaya bahasa visual satu sistem. */}
-      <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-line bg-card md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
         {PRIMARY.map((item) => {
           const active = isActive(pathname, item.href);
           return (
