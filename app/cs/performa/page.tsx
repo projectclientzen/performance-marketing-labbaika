@@ -33,14 +33,29 @@ export default function CsPerformaPage() {
 
   return (
     <div>
-      <header className="border-b border-line bg-card px-[18px] py-3.5">
-        <h1 className="font-display text-[17px] font-semibold text-ink-900">Performa saya</h1>
+      {/* Struktur prototype F-09 "Performa saya": title bar navy + hero navy +
+          grid tile. Hero memakai Closing rate (metrik nyata), BUKAN ROI-per-CS
+          yang dibatalkan Maszen (§25) — spend hanya per-campaign, tak bisa
+          diatribusikan per-CS. */}
+      <header className="bg-navy-900 px-[18px] py-4">
+        <h1 className="font-display text-lg font-bold text-white">Performa saya</h1>
       </header>
-      <div className="grid grid-cols-2 gap-3 p-4">
-        <MetricCard label="Total lead bulan ini" value={String(totalLead)} loading={loading} />
-        <MetricCard label="Total closing" value={String(totalClosing)} loading={loading} />
-        <MetricCard label="Closing rate" value={closingRate} variant="accent" loading={loading} />
-        <MetricCard label="Hari lapor" value={String(reportDays)} loading={loading} />
+
+      <div className="space-y-3 p-4">
+        <div className="rounded-xl bg-navy-900 p-[18px]">
+          <p className="text-xs text-on-dark-muted">Closing rate kamu bulan ini</p>
+          <p className="mt-1 font-display text-[34px] font-semibold leading-none text-brass">
+            {loading ? "…" : closingRate}
+          </p>
+          <p className="mt-2 text-xs text-on-dark-muted">
+            {loading ? "" : `${totalClosing} closing dari ${totalLead} lead`}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <MetricCard label="Hari lapor" value={String(reportDays)} loading={loading} />
+          <MetricCard label="Total closing" value={String(totalClosing)} loading={loading} />
+        </div>
       </div>
     </div>
   );

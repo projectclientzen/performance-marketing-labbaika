@@ -21,6 +21,15 @@ interface Program {
   name: string;
 }
 
+// Badge kategori per baris (prototype F-18) — dari table_name audit.
+const TABLE_LABEL: Record<string, string> = {
+  lead_reports: "Laporan",
+  closings: "Closing",
+  program_prices: "Harga",
+  period_locks: "Periode",
+  app_users: "User",
+};
+
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [programNameById, setProgramNameById] = useState<Record<string, string>>({});
@@ -63,12 +72,17 @@ export default function AuditLogPage() {
         {logs.map((l) => {
           const actor = Array.isArray(l.app_users) ? l.app_users[0] : l.app_users;
           return (
-            <div key={l.id} className="p-3 text-sm">
-              <p className="text-ink-900">
-                <span className="font-medium">{actor?.full_name ?? "Sistem"}</span>{" "}
-                {formatAuditMessage(l, programNameById)}
-              </p>
-              <p className="text-xs text-ink-400">{new Date(l.created_at).toLocaleString("id-ID")}</p>
+            <div key={l.id} className="flex items-start gap-3 p-3 text-sm">
+              <span className="mt-0.5 shrink-0 rounded-chip bg-paper px-2 py-0.5 text-center font-mono text-[11px] text-ink-600">
+                {TABLE_LABEL[l.table_name] ?? l.table_name}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-ink-900">
+                  <span className="font-medium">{actor?.full_name ?? "Sistem"}</span>{" "}
+                  {formatAuditMessage(l, programNameById)}
+                </p>
+                <p className="text-xs text-ink-400">{new Date(l.created_at).toLocaleString("id-ID")}</p>
+              </div>
             </div>
           );
         })}
