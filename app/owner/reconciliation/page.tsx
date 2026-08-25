@@ -99,18 +99,21 @@ export default function ReconciliationPage() {
       <h1 className="font-display text-xl font-bold text-ink-900">Reconciliation</h1>
       {error && <Banner variant="danger">{error}</Banner>}
 
-      <div className="flex gap-2">
+      {/* Kontrol segmen dalam satu container pill (prototype F-11): bg-paper,
+          tombol aktif terisi navy, nonaktif transparan — bukan dua pill lepas
+          berbingkai sendiri. Pola sama dengan toggle Cash/Cohort di Overview. */}
+      <div className="inline-flex flex-wrap gap-1 rounded-chip bg-paper p-0.5 text-sm">
         <button
           type="button"
           onClick={() => setTab("unlinked")}
-          className={tab === "unlinked" ? "rounded-full bg-navy-900 px-3 py-1.5 text-sm text-text-light" : "rounded-full border border-line px-3 py-1.5 text-sm text-ink-600"}
+          className={`rounded-chip px-3 py-1.5 ${tab === "unlinked" ? "bg-navy-900 font-medium text-text-light" : "text-ink-600"}`}
         >
           Unlinked Closings ({unlinked.length})
         </button>
         <button
           type="button"
           onClick={() => setTab("missing")}
-          className={tab === "missing" ? "rounded-full bg-navy-900 px-3 py-1.5 text-sm text-text-light" : "rounded-full border border-line px-3 py-1.5 text-sm text-ink-600"}
+          className={`rounded-chip px-3 py-1.5 ${tab === "missing" ? "bg-navy-900 font-medium text-text-light" : "text-ink-600"}`}
         >
           CS belum lapor hari ini ({missingCs.length})
         </button>
