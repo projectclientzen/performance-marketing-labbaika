@@ -57,6 +57,7 @@
   --color-warn-ink: #8a6a12;       /* teks peringatan, brass cukup gelap untuk dibaca — F-02, F-05, F-08, F-19 */
   --color-toast-ink: #e7edf5;      /* teks toast — F-04 saja */
   --color-danger-lo: #f6e4d6;      /* permukaan lembut ikon danger — F-06 */
+  --color-scrim: rgba(14, 22, 38, 0.5);   /* backdrop sheet & modal — F-04, F-06 */
 
   --color-danger: #a8332b;
   --color-warn: #c9761e;
