@@ -172,7 +172,14 @@ export default function ProgramsPage() {
   return (
     <div className="grid gap-4 md:grid-cols-[280px_1fr]">
       <div className="space-y-3">
-        <h1 className="font-display text-xl font-bold text-ink-900">Program</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="font-display text-xl font-bold text-ink-900">Program</h1>
+          {/* Badge prototype F-14 — CS ikut mengelola program karena sering
+              upsell/cross-sell, jadi CRUD memang terbuka untuk kedua peran. */}
+          <span className="rounded-chip bg-ok/10 px-2 py-0.5 text-[11px] font-medium text-ok">
+            Semua role · CS &amp; Owner
+          </span>
+        </div>
         {error && <Banner variant="danger">{error}</Banner>}
         <div className="divide-y divide-line rounded-[10px] border border-line bg-card">
           {programs.map((p) => (

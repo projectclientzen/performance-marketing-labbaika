@@ -21,18 +21,22 @@ const MONTHS_ID = [
 export default function PeriodLockPage() {
   const [locks, setLocks] = useState<PeriodLock[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [year, setYear] = useState(parseInt(todayJakarta().slice(0, 4), 10));
-  const [month, setMonth] = useState(parseInt(todayJakarta().slice(5, 7), 10));
+  // Bulan berjalan jadi titik awal daftar 12 bulan ke belakang.
+  const year = parseInt(todayJakarta().slice(0, 4), 10);
+  const month = parseInt(todayJakarta().slice(5, 7), 10);
 
   function load() {
     apiFetch<PeriodLock[]>("/api/period-locks").then(setLocks).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
   }
   useEffect(load, []);
 
-  async function lockPeriod() {
+  async function lockPeriod(targetYear: number, targetMonth: number) {
     setError(null);
     try {
-      await apiFetch("/api/period-locks", { method: "POST", body: JSON.stringify({ year, month }) });
+      await apiFetch("/api/period-locks", {
+        method: "POST",
+        body: JSON.stringify({ year: targetYear, month: targetMonth }),
+      });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal mengunci periode");
@@ -51,31 +55,50 @@ export default function PeriodLockPage() {
     }
   }
 
+  // Prototype F-17 menampilkan SATU daftar berisi periode terbuka maupun
+  // terkunci, dengan tombol kontekstual per baris. API hanya menyimpan yang
+  // terkunci, jadi daftar periode diturunkan di sini (12 bulan terakhir) lalu
+  // dicocokkan dengan lock yang ada — tidak perlu endpoint baru.
+  const periods = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(year, month - 1 - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    return { year: y, month: m, lock: locks.find((l) => l.year === y && l.month === m) ?? null };
+  });
+
   return (
     <div className="space-y-4">
       <h1 className="font-display text-xl font-bold text-ink-900">Period lock</h1>
       {error && <Banner variant="danger">{error}</Banner>}
 
-      <div className="flex items-end gap-2 rounded-[10px] border border-line bg-card p-3">
-        <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))} className="h-10 rounded-lg border border-line px-2 text-sm">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{MONTHS_ID[m - 1]}</option>)}
-        </select>
-        <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} className="h-10 w-24 rounded-lg border border-line px-2 text-sm" />
-        <button type="button" onClick={lockPeriod} className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass">
-          Kunci periode
-        </button>
-      </div>
-
       <div className="divide-y divide-line rounded-[10px] border border-line bg-card">
-        {locks.map((l) => (
-          <div key={l.id} className="flex items-center justify-between p-3 text-sm">
-            <span className="font-medium text-ink-900">{MONTHS_ID[l.month - 1]} {l.year}</span>
-            <button type="button" onClick={() => unlockPeriod(l.id)} className="text-danger">
-              Buka kunci
-            </button>
+        {periods.map((p) => (
+          <div key={`${p.year}-${p.month}`} className="flex items-center justify-between gap-3 p-3 text-sm">
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                aria-hidden
+                className={`h-2 w-2 shrink-0 rounded-full ${p.lock ? "bg-ink-400" : "bg-ok"}`}
+              />
+              <span className="truncate font-medium text-ink-900">
+                {MONTHS_ID[p.month - 1]} {p.year}
+              </span>
+              <span className="shrink-0 text-[13px] text-ink-400">{p.lock ? "Terkunci" : "Terbuka"}</span>
+            </span>
+            {p.lock ? (
+              <button type="button" onClick={() => unlockPeriod(p.lock!.id)} className="shrink-0 text-[13px] text-danger">
+                Buka kunci
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => lockPeriod(p.year, p.month)}
+                className="h-9 shrink-0 rounded-lg bg-navy-900 px-3 text-[13px] font-semibold text-white"
+              >
+                Kunci periode
+              </button>
+            )}
           </div>
         ))}
-        {locks.length === 0 && <p className="p-3 text-sm text-ink-400">Belum ada periode terkunci.</p>}
       </div>
     </div>
   );

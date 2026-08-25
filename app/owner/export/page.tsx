@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { todayJakarta } from "@/lib/utils/date";
+import { formatDateID, monthRange, todayJakarta } from "@/lib/utils/date";
 import { apiFetch } from "@/lib/api/client";
 import { Banner } from "@/components/ui/Banner";
 
@@ -24,9 +24,27 @@ async function downloadExport(endpoint: string, from: string, to: string, filena
   URL.revokeObjectURL(url);
 }
 
+type Preset = "this-month" | "last-month" | "custom";
+
 export default function ExportCenterPage() {
   const [from, setFrom] = useState(`${todayJakarta().slice(0, 7)}-01`);
   const [to, setTo] = useState(todayJakarta());
+  const [preset, setPreset] = useState<Preset>("this-month");
+
+  function applyPreset(next: Preset) {
+    setPreset(next);
+    if (next === "this-month") {
+      setFrom(`${todayJakarta().slice(0, 7)}-01`);
+      setTo(todayJakarta());
+    } else if (next === "last-month") {
+      const [y, m] = todayJakarta().split("-").map(Number);
+      const prev = new Date(y, m - 2, 1);
+      const range = monthRange(prev.getFullYear(), prev.getMonth() + 1);
+      setFrom(range.from);
+      setTo(range.to);
+    }
+  }
+
   const [error, setError] = useState<string | null>(null);
   const [loadingOp, setLoadingOp] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -38,9 +56,28 @@ export default function ExportCenterPage() {
       <h1 className="font-display text-xl font-bold text-ink-900">Export Center</h1>
       {error && <Banner variant="danger">{error}</Banner>}
 
-      <div className="flex gap-2 rounded-[10px] border border-line bg-card p-3">
-        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm" />
-        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm" />
+      {/* Preset rentang (prototype F-13: "1–19 Agu", "Juli 2026", "Kustom…").
+          Input tanggal mentah hanya muncul saat preset "Kustom". */}
+      <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-line bg-card p-3">
+        <select
+          value={preset}
+          onChange={(e) => applyPreset(e.target.value as Preset)}
+          className="h-10 rounded-lg border border-line px-2 text-sm text-ink-900"
+        >
+          <option value="this-month">Bulan ini</option>
+          <option value="last-month">Bulan lalu</option>
+          <option value="custom">Kustom…</option>
+        </select>
+        {preset === "custom" ? (
+          <>
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm" />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm" />
+          </>
+        ) : (
+          <span className="font-mono text-[13px] text-ink-600">
+            {formatDateID(from)} – {formatDateID(to)}
+          </span>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
