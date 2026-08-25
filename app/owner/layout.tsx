@@ -8,22 +8,23 @@ import { useState } from "react";
 /**
  * Kerangka layar Owner — F-07 di docs/labbaika-reporting.html.
  *
- * Nilai di bawah diukur langsung dari prototype lewat getComputedStyle, bukan
- * dikira-kira dari tangkapan layar:
+ * Desktop: sidebar navy tetap di kiri, diukur langsung dari prototype
+ * (lihat commit sidebar sebelumnya). Tidak diubah oleh berkas ini.
  *
- *   sidebar   lebar 220px · bg #0b3d54 · padding 24px 16px · jarak antaritem 6px
- *   logo      Bricolage Grotesque 16px/600 putih · padding 0 8px 20px · gap 10px
- *   item      padding 11px 12px · radius 8px · Instrument Sans 14px
- *   aktif     bg #0f5a78 · teks putih · weight 600
- *   nonaktif  transparan · teks #a6cbd8 · weight 400
- *   ikon      ◔ Overview · ▦ Campaign · ⚑ Lead Intel · ⇩ Export
+ * Mobile: diukur ulang dari frame mobile F-07 di prototype (posisi teks
+ * per elemen, bukan tebakan). Temuan pentingnya mengoreksi versi
+ * sebelumnya: nav utama mobile itu **bottom tab bar 4 item, di atas
+ * latar terang** (bg-card, warna nonaktif = ink-400 #6e93a3, persis
+ * cocok dengan token yang sudah ada) — bukan baris nav gelap yang bisa
+ * digulir di atas. Ini juga persis pola yang sudah dipakai
+ * app/cs/layout.tsx, jadi disamakan strukturnya di sini.
  *
- * Prototype menampilkan tepat empat tujuan, dan itu yang dipakai di sini.
- * Percobaan sebelumnya menaruh sembilan layar sisanya langsung di bawah empat
- * itu; hasilnya sidebar yang tidak lagi mirip prototype, dan memang itu yang
- * dikeluhkan. Sekarang sembilan sisanya masuk ke pengungkap tertutup yang
- * ditempel di dasar sidebar, sehingga tampilan bawaannya sama dengan prototype
- * tapi tidak ada layar yang jadi tak terjangkau.
+ * Sembilan layar sekunder tidak punya representasi mobile di prototype
+ * (itu mockup P0, hanya 4 tujuan utama yang digambar). Aturan #4 di
+ * work order melarang mengarang layout yang tidak ada di prototype,
+ * jadi bukan navigasi utama yang ditambah — cukup satu pengungkap kecil
+ * "Lainnya" di pojok kanan atas, tidak mengambil bobot visual dari
+ * empat tujuan utama.
  */
 
 const PRIMARY = [
@@ -45,49 +46,60 @@ const SECONDARY = [
   { href: "/owner/settings/users", label: "User" },
 ];
 
-const ALL = [...PRIMARY, ...SECONDARY];
-
 function isActive(pathname: string, href: string) {
   return href === "/owner" ? pathname === "/owner" : pathname.startsWith(href);
 }
 
-function itemClass(active: boolean) {
-  return `rounded-lg px-3 py-[11px] text-sm transition-colors duration-200 ${
-    active ? "bg-navy-600 font-semibold text-white" : "font-normal text-on-dark-muted hover:bg-navy-800"
-  }`;
-}
-
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [showMore, setShowMore] = useState(() => SECONDARY.some((i) => isActive(pathname, i.href)));
+  const [showMore, setShowMore] = useState(false);
+  const secondaryActive = SECONDARY.some((i) => isActive(pathname, i.href));
 
   return (
     <div className="min-h-screen bg-paper md:flex">
-      {/* Sidebar tidak muat di bawah 768px. Prototype tidak menggambar varian
-          mobile untuk layar Owner — di sana layar Owner desktop-first. */}
-      <header className="bg-ink-900 md:hidden">
-        <div className="flex items-center gap-2.5 px-4 pt-3">
-          <Image src="/logo/labbaika-icon.jpg" alt="" width={26} height={26} className="rounded" priority />
-          <span className="font-display text-base font-semibold text-white">Labbaika</span>
-        </div>
-        <nav className="flex gap-1.5 overflow-x-auto px-3 pb-2.5 pt-2.5">
-          {ALL.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(pathname, item.href) ? "page" : undefined}
-              className={`shrink-0 whitespace-nowrap ${itemClass(isActive(pathname, item.href))}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+      {/* Header mobile: hanya logo + pengungkap "Lainnya" untuk 9 layar
+          sekunder. Judul tiap layar ("Overview", "Campaign", dst) ada di
+          dalam halamannya sendiri, bukan di kerangka ini — sama seperti
+          prototype, yang tidak mengulang judul di dua tempat. */}
+      <header className="relative flex items-center justify-between border-b border-line bg-card px-4 py-3 md:hidden">
+        <Link href="/owner" className="flex items-center gap-2">
+          <Image src="/logo/labbaika-icon.jpg" alt="" width={24} height={24} className="rounded" priority />
+          <span className="font-display text-sm font-semibold text-ink-900">Labbaika</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          aria-expanded={showMore}
+          className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors duration-200 ${
+            secondaryActive ? "font-medium text-brass" : "text-ink-400"
+          }`}
+        >
+          Lainnya ▾
+        </button>
+
+        {showMore && (
+          <nav className="absolute right-4 top-full z-10 mt-1 w-56 rounded-card border border-line bg-card py-1.5 shadow-lg">
+            {SECONDARY.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setShowMore(false)}
+                aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                className={`block px-4 py-2 text-sm transition-colors duration-200 ${
+                  isActive(pathname, item.href) ? "font-medium text-brass" : "text-ink-600 hover:bg-paper"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
       </header>
 
       <aside className="hidden w-[220px] shrink-0 flex-col bg-ink-900 px-4 py-6 md:flex">
         <Link href="/owner" className="flex items-center gap-2.5 px-2 pb-5">
           <Image src="/logo/labbaika-icon.jpg" alt="" width={28} height={28} className="rounded" priority />
-          <span className="font-display text-base font-semibold text-white">Labbaika</span>
+          <span className="font-display text-lg font-semibold text-white">Labbaika</span>
         </Link>
 
         <nav className="flex flex-col gap-1.5">
@@ -98,7 +110,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-2.5 ${itemClass(active)}`}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-[11px] text-sm transition-colors duration-200 ${
+                  active ? "bg-navy-600 font-semibold text-white" : "font-normal text-on-dark-muted hover:bg-navy-800"
+                }`}
               >
                 <span aria-hidden className="w-4 shrink-0 text-center text-[13px]">
                   {item.icon}
@@ -109,9 +123,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Menempel langsung di bawah Export, bukan didorong ke dasar sidebar:
-            sebagai kelanjutan daftar nav ia terbaca satu kesatuan, sedangkan
-            di dasar layar ia tampak seperti kontrol yang tidak berhubungan. */}
         <div className="mt-1.5">
           <button
             type="button"
@@ -135,9 +146,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                     href={item.href}
                     aria-current={active ? "page" : undefined}
                     className={`rounded-lg px-3 py-2 text-[13px] transition-colors duration-200 ${
-                      active
-                        ? "bg-navy-600 font-medium text-white"
-                        : "text-on-dark-muted hover:bg-navy-800"
+                      active ? "bg-navy-600 font-medium text-white" : "text-on-dark-muted hover:bg-navy-800"
                     }`}
                   >
                     {item.label}
@@ -149,7 +158,31 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-4 py-5 md:px-6 md:py-6">{children}</main>
+      <main className="min-w-0 flex-1 px-4 py-5 pb-24 md:px-6 md:py-6 md:pb-6">{children}</main>
+
+      {/* Bottom tab bar mobile — diukur dari frame mobile F-07: bg terang,
+          border atas, aktif brass, nonaktif ink-400. Pola sama persis
+          dengan app/cs/layout.tsx supaya bahasa visual satu sistem. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-line bg-card md:hidden">
+        {PRIMARY.map((item) => {
+          const active = isActive(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-1 flex-col items-center gap-1 py-2.5 pb-3 text-[11px] ${
+                active ? "font-semibold text-brass" : "font-normal text-ink-400"
+              }`}
+            >
+              <span aria-hidden className="text-lg leading-none">
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

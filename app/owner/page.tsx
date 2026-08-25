@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatPercent, formatROI } from "@/lib/utils/percent";
 import { cppStatus } from "@/lib/utils/profit";
-import { todayJakarta } from "@/lib/utils/date";
+import { formatDateID, parseDateID, todayJakarta } from "@/lib/utils/date";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { ThresholdCard } from "@/components/ui/ThresholdCard";
 import { Banner } from "@/components/ui/Banner";
@@ -37,6 +37,19 @@ interface Overview {
 
 function monthStart(): string {
   return `${todayJakarta().slice(0, 7)}-01`;
+}
+
+/**
+ * Rentang tanggal pendek untuk judul mobile — prototype: "1–19 Agu 2026".
+ * Kalau bulan sama, angka hari saja untuk sisi kiri; kalau beda, dua tanggal
+ * penuh. Presentasi murni untuk satu tempat ini, jadi dibuat lokal alih-alih
+ * menambah fungsi baru ke lib/utils/date.ts.
+ */
+function shortDateRange(from: string, to: string): string {
+  const a = parseDateID(from);
+  const b = parseDateID(to);
+  const sameMonth = a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  return sameMonth ? `${a.getDate()}–${formatDateID(to)}` : `${formatDateID(from)}–${formatDateID(to)}`;
 }
 
 /** Baris funnel — batang proporsional dengan angka di dalamnya (F-07). */
@@ -95,6 +108,18 @@ export default function OwnerOverviewPage() {
 
   return (
     <div className="space-y-4">
+      {/* Judul halaman versi mobile. Diukur dari frame mobile F-07 di
+          prototype: "Overview" 18px/700 kiri, rentang tanggal pendek kanan —
+          teks ini hidup DI DALAM konten halaman di prototype, bukan di
+          kerangka (layout.tsx), karena tiap layar Owner punya judulnya
+          sendiri. Desktop tidak menampilkan judul terpisah di sini —
+          nav sidebar sudah cukup jadi penanda posisi, sama seperti
+          prototype desktop yang juga tidak mengulang judul di konten. */}
+      <div className="flex items-baseline justify-between md:hidden">
+        <h1 className="font-display text-lg font-bold text-ink-900">Overview</h1>
+        <span className="font-mono text-xs text-ink-400">{shortDateRange(from, to)}</span>
+      </div>
+
       {/* Filter bar. Prototype juga punya pemilih brand dan source; keduanya
           belum disambungkan ke data (sistem ini satu brand, dan filter source
           belum dipakai halaman manapun), jadi tidak ditampilkan sebagai kontrol
@@ -145,13 +170,10 @@ export default function OwnerOverviewPage() {
         </Banner>
       )}
 
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-        <MetricCard
-          label="Spend"
-          value={formatRupiah(data?.spend ?? 0)}
-          delta="Meta Ads"
-          loading={loading}
-        />
+      {/* Desktop: 4 MetricCard dengan caption (Meta Ads/CPL/CPP/biaya iklan),
+          plus ROI hero + ThresholdCard berdampingan — tidak berubah. */}
+      <div className="hidden gap-3.5 md:grid md:grid-cols-4">
+        <MetricCard label="Spend" value={formatRupiah(data?.spend ?? 0)} delta="Meta Ads" loading={loading} />
         <MetricCard
           label="Lead"
           value={(data?.total_lead ?? 0).toLocaleString("id-ID")}
@@ -167,14 +189,12 @@ export default function OwnerOverviewPage() {
         <MetricCard
           label="Omset"
           value={formatRupiah(data?.gross_booking_value ?? 0)}
-          delta={
-            data?.ad_cost_ratio != null ? `biaya iklan ${formatPercent(data.ad_cost_ratio)}` : undefined
-          }
+          delta={data?.ad_cost_ratio != null ? `biaya iklan ${formatPercent(data.ad_cost_ratio)}` : undefined}
           loading={loading}
         />
       </div>
 
-      <div className="grid gap-3.5 lg:grid-cols-2">
+      <div className="hidden gap-3.5 md:grid md:grid-cols-2">
         {/* Kartu ROI — satu angka kunci per layar, aksen brass di atas navy.
             Kalimat di prototype berbunyi "menghasilkan Rp9,08 gross profit";
             gross profit sudah di luar lingkup (migrasi 023), jadi diganti
@@ -212,10 +232,98 @@ export default function OwnerOverviewPage() {
         )}
       </div>
 
+      {/* Mobile: markup lokal, tidak lewat MetricCard/ThresholdCard.
+          Diukur dari frame mobile F-07 — kartunya lebih ringkas daripada
+          desktop, TANPA baris caption sama sekali (bukan disembunyikan,
+          memang tidak ada di prototype): tanpa "Meta Ads"/"CPL"/"CPP"/
+          "biaya iklan" di bawah angka, dan tanpa kalimat "Setiap Rp1..."
+          di kartu ROI maupun baris "CPP di X% break-even · ambang 70%" di
+          kartu threshold. MetricCard/ThresholdCard baru menerima props
+          opsional yang selalu menggambar sebagian baris itu, jadi dibuat
+          markup sendiri di sini daripada mengubah komponen milik Track A. */}
+      <div className="rounded-card bg-ink-900 p-5 md:hidden">
+        <span className="text-[13px] text-on-dark-muted">ROI</span>
+        <span className="ml-2 rounded-chip bg-navy-700 px-2 py-0.5 font-mono text-[10px] text-on-dark-muted">
+          estimasi
+        </span>
+        <div className="mt-2 font-mono text-[40px] font-semibold leading-none text-brass">
+          {loading ? "—" : formatROI(data?.roi ?? null)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:hidden">
+        <div className="rounded-card border border-line bg-card p-4">
+          <p className="text-[13px] text-ink-400">Spend</p>
+          <p className="mt-1.5 font-mono text-[22px] font-semibold text-ink-900">
+            {formatRupiah(data?.spend ?? 0)}
+          </p>
+        </div>
+        <div className="rounded-card border border-line bg-card p-4">
+          <p className="text-[13px] text-ink-400">Lead</p>
+          <p className="mt-1.5 font-mono text-[22px] font-semibold text-ink-900">
+            {(data?.total_lead ?? 0).toLocaleString("id-ID")}
+          </p>
+        </div>
+        <div className="rounded-card border border-line bg-card p-4">
+          <p className="text-[13px] text-ink-400">Closing</p>
+          <p className="mt-1.5 font-mono text-[22px] font-semibold text-ink-900">
+            {(data?.closing ?? 0).toLocaleString("id-ID")}
+          </p>
+        </div>
+        <div className="rounded-card border border-line bg-card p-4">
+          <p className="text-[13px] text-ink-400">Omset</p>
+          <p className="mt-1.5 font-mono text-[22px] font-semibold text-ink-900">
+            {formatRupiah(data?.gross_booking_value ?? 0)}
+          </p>
+        </div>
+      </div>
+
+      {data && (
+        <div className="rounded-card border border-line bg-card p-4 md:hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-semibold text-ink-900">CPP vs Break-even</h3>
+            <span
+              className={`rounded-chip px-2 py-0.5 text-[11px] font-medium ${
+                cppStatus(data.cpp, data.breakeven_cpp) === "safe"
+                  ? "bg-ok/10 text-ok"
+                  : cppStatus(data.cpp, data.breakeven_cpp) === "warning"
+                    ? "bg-warn/10 text-warn"
+                    : "bg-danger/10 text-danger"
+              }`}
+            >
+              {cppStatus(data.cpp, data.breakeven_cpp) === "safe"
+                ? "aman"
+                : cppStatus(data.cpp, data.breakeven_cpp) === "warning"
+                  ? "hati-hati"
+                  : "lewat ambang"}
+            </span>
+          </div>
+          <div className="mt-3 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs text-ink-400">CPP</p>
+              <p className="mt-0.5 font-mono text-lg font-semibold text-ok">
+                {formatRupiah(Math.round(data.cpp ?? 0))}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-ink-400">Break-even</p>
+              <p className="mt-0.5 font-mono text-lg font-semibold text-ink-900">
+                {formatRupiah(Math.round(data.breakeven_cpp ?? 0))}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {data && (
         <section className="rounded-card border border-line bg-card p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-sm font-semibold text-ink-900">Funnel — {modeLabel}</h2>
+            {/* Judul dipendekkan di mobile (prototype: "Funnel" tanpa
+                suffix mode) — desktop tetap menyebut mode Cash/Cohort. */}
+            <h2 className="font-display text-sm font-semibold text-ink-900">
+              <span className="md:hidden">Funnel</span>
+              <span className="hidden md:inline">Funnel — {modeLabel}</span>
+            </h2>
             {/* Lama lead menjadi closing. Datanya sudah ada sejak awal —
                 closings.interval_days kolom generated (closing_date - lead_date)
                 di 004 — tapi selama ini hanya dipakai diam-diam untuk banner
@@ -264,7 +372,10 @@ export default function OwnerOverviewPage() {
             />
           </div>
 
-          <div className="mt-4 border-t border-line pt-3">
+          {/* Legend distribusi bucket mentah: tidak muncul di frame mobile
+              prototype (kartu Funnel-nya berhenti setelah baris Closing),
+              jadi disembunyikan di bawah 768px. */}
+          <div className="mt-4 hidden border-t border-line pt-3 md:block">
             <p className="text-[11px] text-ink-400">
               Distribusi akhir lead (bucket mentah, bukan funnel)
             </p>
