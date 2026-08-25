@@ -40,6 +40,11 @@ interface Source {
   name: string;
 }
 
+const MONTHS_ID = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
 export default function ManagementReportPage() {
   const [year, setYear] = useState(parseInt(todayJakarta().slice(0, 4), 10));
   const [month, setMonth] = useState(parseInt(todayJakarta().slice(5, 7), 10));
@@ -140,28 +145,39 @@ export default function ManagementReportPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))} className="h-10 rounded-lg border border-line px-2 text-sm">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-            <option key={m} value={m}>
-              Bulan {m}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          value={year}
-          onChange={(e) => setYear(parseInt(e.target.value, 10))}
-          className="h-10 w-24 rounded-lg border border-line px-2 text-sm"
-        />
-        <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm">
-          <option value="">Semua source</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+      {/* Filter berlabel per kontrol (prototype F-12): tiap select punya label
+          di atasnya, grid rapi — bukan baris select telanjang. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <label className="flex flex-col gap-1 text-[13px] text-ink-600">
+          Bulan
+          <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))} className="h-10 rounded-lg border border-line px-2 text-sm text-ink-900">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {MONTHS_ID[m - 1]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-ink-600">
+          Tahun
+          <input
+            type="number"
+            value={year}
+            onChange={(e) => setYear(parseInt(e.target.value, 10))}
+            className="h-10 rounded-lg border border-line px-2 text-sm text-ink-900"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-ink-600">
+          Source
+          <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="h-10 rounded-lg border border-line px-2 text-sm text-ink-900">
+            <option value="">Semua source</option>
+            {sources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {error && <Banner variant="danger">{error}</Banner>}
