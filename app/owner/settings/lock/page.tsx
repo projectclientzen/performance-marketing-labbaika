@@ -12,6 +12,12 @@ interface PeriodLock {
   locked_at: string;
 }
 
+// Nama bulan lokal (prototype F-17: "Agustus 2026", bukan "Bulan 8 2026").
+const MONTHS_ID = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
 export default function PeriodLockPage() {
   const [locks, setLocks] = useState<PeriodLock[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export default function PeriodLockPage() {
 
       <div className="flex items-end gap-2 rounded-[10px] border border-line bg-card p-3">
         <select value={month} onChange={(e) => setMonth(parseInt(e.target.value, 10))} className="h-10 rounded-lg border border-line px-2 text-sm">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>Bulan {m}</option>)}
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{MONTHS_ID[m - 1]}</option>)}
         </select>
         <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value, 10))} className="h-10 w-24 rounded-lg border border-line px-2 text-sm" />
         <button type="button" onClick={lockPeriod} className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass">
@@ -63,7 +69,7 @@ export default function PeriodLockPage() {
       <div className="divide-y divide-line rounded-[10px] border border-line bg-card">
         {locks.map((l) => (
           <div key={l.id} className="flex items-center justify-between p-3 text-sm">
-            <span className="font-medium text-ink-900">Bulan {l.month} {l.year}</span>
+            <span className="font-medium text-ink-900">{MONTHS_ID[l.month - 1]} {l.year}</span>
             <button type="button" onClick={() => unlockPeriod(l.id)} className="text-danger">
               Buka kunci
             </button>

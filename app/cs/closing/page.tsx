@@ -246,13 +246,13 @@ export default function ClosingFormPage() {
         {error && <Banner variant="danger">{error}</Banner>}
 
         {conflict && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-6">
             <div className="w-full max-w-sm rounded-[14px] bg-paper p-6">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-danger-lo text-[22px] text-warn">
                 !
               </div>
               <h2 className="font-display text-[19px] font-semibold text-ink-900">Nomor sudah dicatat</h2>
-              <p className="mt-2.5 text-sm leading-relaxed text-ink-600">
+              <p className="mt-2.5 text-sm leading-normal text-ink-600">
                 Nomor ini sudah dicatat closing oleh <b>{conflict.cs_name}</b>, {conflict.closing_date}, {conflict.program_name}.
               </p>
               <div className="mt-[22px] flex flex-col gap-2.5">
@@ -316,7 +316,11 @@ export default function ClosingFormPage() {
               />
               {fieldErrors.email && <p className="mt-1 text-xs text-danger">{fieldErrors.email}</p>}
             </div>
-            <label className="flex items-center gap-2 text-sm text-ink-600">
+            {/* Row consent dibungkus card (prototype F-05): pad12 radius8
+                border-line bg-card, teks 13px. Teks consent TIDAK diubah —
+                perbedaan makna vs prototype ("pemasaran" vs "pemberangkatan")
+                adalah keputusan hukum PDP, menunggu Maszen. */}
+            <label className="flex items-center gap-2 rounded-lg border border-line bg-card p-3 text-[13px] text-ink-600">
               <input
                 type="checkbox"
                 checked={form.pdp_consent}
@@ -551,7 +555,7 @@ export default function ClosingFormPage() {
             type="button"
             onClick={() => goStep(step + 1)}
             disabled={stepIncomplete}
-            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
+            className="h-[50px] w-full rounded-lg bg-brass text-[15px] font-semibold text-on-brass disabled:opacity-50"
           >
             Lanjut
           </button>
@@ -560,7 +564,7 @@ export default function ClosingFormPage() {
             type="button"
             onClick={() => submit(false)}
             disabled={submitting}
-            className="h-12 w-full rounded-lg bg-brass text-base font-semibold text-on-brass disabled:opacity-50"
+            className="h-[50px] w-full rounded-lg bg-brass text-[15px] font-semibold text-on-brass disabled:opacity-50"
           >
             {submitting ? "Menyimpan..." : "Simpan closing"}
           </button>
