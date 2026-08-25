@@ -59,7 +59,7 @@ export default function CsHomePage() {
   return (
     <div>
       <header className="bg-navy-900 px-[22px] pb-[18px] pt-4 text-white">
-        <p className="text-sm text-on-dark-muted">{formatDateLong(today)}</p>
+        <p className="text-[13px] text-on-dark-muted">{formatDateLong(today)}</p>
         <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight">
           Assalamualaikum, {loading ? "…" : (me?.full_name ?? "CS")}
         </h1>
@@ -94,13 +94,13 @@ export default function CsHomePage() {
 
         <Link
           href="/cs/closing"
-          className="flex h-12 w-full items-center justify-center rounded-lg border border-line bg-card text-base font-semibold text-ink-900"
+          className="flex h-[46px] w-full items-center justify-center rounded-lg border border-line bg-card text-[15px] font-medium text-ink-900"
         >
           Catat closing
         </Link>
 
         <section className="rounded-[10px] border border-line bg-card p-4">
-          <h2 className="mb-3.5 text-sm font-medium text-ink-600">7 hari terakhir</h2>
+          <h2 className="mb-3.5 text-[13px] font-medium text-ink-600">7 hari terakhir</h2>
           <div className="space-y-3.5">
           {days.map((day) => {
             const dayReports = reports.filter((r) => r.report_date === day);
