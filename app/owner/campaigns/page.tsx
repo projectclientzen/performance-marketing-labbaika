@@ -33,10 +33,21 @@ function pct(n: number, total: number): number | null {
   return total > 0 ? n / total : null;
 }
 
+// Opsi dropdown "Urut:" mobile — persis 3 pilihan di frame mobile F-08
+// prototype (value/label/arah dari combobox "ROI tertinggi" prototype).
+// CPP ascending karena CPP yang lebih murah lebih baik; ROI dan Spend
+// descending karena lebih besar lebih baik.
+const MOBILE_SORT_OPTIONS = [
+  { value: "roi", label: "ROI tertinggi", key: "roi", dir: "desc" as const },
+  { value: "cpp", label: "CPP terendah", key: "cpp", dir: "asc" as const },
+  { value: "spend", label: "Spend tertinggi", key: "spend", dir: "desc" as const },
+];
+
 export default function CampaignQualityPage() {
   const [rows, setRows] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mobileSort, setMobileSort] = useState(MOBILE_SORT_OPTIONS[0]);
 
   useEffect(() => {
     const from = `${todayJakarta().slice(0, 7)}-01`;
@@ -76,11 +87,17 @@ export default function CampaignQualityPage() {
       cardLabel: "CPL",
     },
     {
+      // cardLabel ditambahkan -- di prototype mobile, ketiga kolom
+      // konversi antar-stage ini MUNCUL di kartu (bukan cuma di tabel
+      // desktop). Tanpa cardLabel, DataTable diam-diam membuang kolom ini
+      // dari tampilan kartu (lihat DataTable.tsx: hanya kolom ber-cardLabel
+      // yang dirender di kartu mobile).
       key: "reached_consultation_pct",
       header: "→consult",
       align: "right",
       accessor: (r) => pct(r.reached_consultation, r.total_lead),
       render: (r) => formatPercent(pct(r.reached_consultation, r.total_lead)),
+      cardLabel: "→consult",
     },
     {
       key: "reached_offering_pct",
@@ -88,6 +105,7 @@ export default function CampaignQualityPage() {
       align: "right",
       accessor: (r) => pct(r.reached_offering, r.reached_consultation),
       render: (r) => formatPercent(pct(r.reached_offering, r.reached_consultation)),
+      cardLabel: "→offer",
     },
     {
       key: "reached_closing_pct",
@@ -95,6 +113,7 @@ export default function CampaignQualityPage() {
       align: "right",
       accessor: (r) => pct(r.closing, r.reached_offering),
       render: (r) => formatPercent(pct(r.closing, r.reached_offering)),
+      cardLabel: "→close",
     },
     {
       key: "closing",
@@ -149,15 +168,45 @@ export default function CampaignQualityPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-xl font-bold text-ink-900">Campaign Quality</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-xl font-bold text-ink-900">Campaign Quality</h1>
+        {/* "Urut:" mobile -- DataTable tidak mengekspos sort sebagai state
+            terkendali (§4 work order: API-nya milik Track A, dibekukan).
+            Dipilih pendekatan yang tidak mengubah DataTable sama sekali:
+            `key={mobileSort.value}` memaksa React memasang ulang komponen
+            saat pilihan berubah, sehingga defaultSortKey/Dir yang baru
+            dibaca dari awal. Header tabel desktop tetap bisa diklik untuk
+            menimpa urutan seperti biasa -- ini cuma menentukan urutan
+            AWAL, sama seperti defaultSortKey statis yang sudah ada
+            sebelumnya, hanya sekarang bisa diganti dari mobile. */}
+        <label className="flex items-center gap-1.5 text-xs text-ink-600 md:hidden">
+          Urut:
+          <select
+            value={mobileSort.value}
+            onChange={(e) => {
+              const next = MOBILE_SORT_OPTIONS.find((o) => o.value === e.target.value);
+              if (next) setMobileSort(next);
+            }}
+            className="h-8 rounded-input border border-line bg-card px-2 text-xs text-ink-900"
+          >
+            {MOBILE_SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {error && <Banner variant="danger">{error}</Banner>}
       {loading && <p className="text-sm text-ink-400">Memuat...</p>}
 
       <DataTable
+        key={mobileSort.value}
         columns={columns}
         rows={rows}
         rowKey={(r) => r.campaign_id}
-        defaultSortKey="roi"
+        defaultSortKey={mobileSort.key}
+        defaultSortDir={mobileSort.dir}
         cardTitle={(r) => r.campaign_name}
         cardAccent={(r) => formatROI(r.roi)}
       />
