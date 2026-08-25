@@ -15,7 +15,7 @@ interface UserRow {
   email: string | null;
 }
 
-const emptyForm = { full_name: "", whatsapp: "", email: "", role: "cs" as AppRole };
+const emptyForm = { full_name: "", whatsapp: "", email: "", role: "cs" as AppRole, password: "" };
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -24,6 +24,7 @@ export default function UserManagementPage() {
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [linkBanner, setLinkBanner] = useState<{ label: string; link: string } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
 
   function load() {
@@ -35,14 +36,14 @@ export default function UserManagementPage() {
     setCreating(true);
     setError(null);
     try {
-      const created = await apiFetch<{ email: string; invite_link: string }>("/api/users", {
+      const created = await apiFetch<{ email: string }>("/api/users", {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setLinkBanner({
-        label: `Akun ${created.email} dibuat. Tautan undangan (sekali pakai, CS menetapkan passwordnya sendiri):`,
-        link: created.invite_link,
-      });
+      // Owner sudah tahu passwordnya (dia yang mengetik), jadi tidak ada
+      // tautan untuk direlai — cukup konfirmasi akun siap dipakai.
+      setLinkBanner(null);
+      setNotice(`Akun ${created.email} dibuat dan langsung bisa dipakai login.`);
       setForm(emptyForm);
       setShowForm(false);
       load();
@@ -187,6 +188,8 @@ export default function UserManagementPage() {
         </Banner>
       )}
 
+      {notice && <Banner variant="ok">{notice}</Banner>}
+
       {showForm && (
         <div className="space-y-2 rounded-[10px] border border-dashed border-line p-3">
           <input
@@ -208,6 +211,16 @@ export default function UserManagementPage() {
             onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
             className="h-9 w-full rounded-lg border border-line px-2 text-sm"
           />
+          {/* Owner mengetik password di sini dan menyerahkannya langsung ke
+              user — tidak ada tautan undangan yang perlu direlai. */}
+          <input
+            placeholder="Password (minimal 8 karakter)"
+            type="text"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(e) => setForm((s) => ({ ...s, password: e.target.value }))}
+            className="h-9 w-full rounded-lg border border-line px-2 text-sm"
+          />
           <select
             value={form.role}
             onChange={(e) => setForm((s) => ({ ...s, role: e.target.value as AppRole }))}
@@ -220,7 +233,7 @@ export default function UserManagementPage() {
           <button
             type="button"
             onClick={addUser}
-            disabled={creating || !form.full_name || !form.whatsapp || !form.email}
+            disabled={creating || !form.full_name || !form.whatsapp || !form.email || form.password.length < 8}
             className="h-9 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
           >
             {creating ? "Menambah..." : "Simpan"}

@@ -77,19 +77,23 @@ const postSchema = z.object({
   }),
   email: z.string().email("Email tidak valid"),
   role: z.enum(["owner", "advertiser", "cs"]).default("cs"),
+  password: z
+    .string()
+    .min(8, "Password minimal 8 karakter"),
 });
 
 /**
- * 10-AUDIT-FE-BE.md #15: creating the first CS/owner identity has always
- * needed the Supabase dashboard directly. admin.generateLink({type:
- * "invite"}) both creates the auth identity AND returns a one-time,
- * expiring action_link that lets the new user set their own password —
- * unlike admin.createUser + a generated temp password, which would put a
- * permanent, owner-known credential into a WhatsApp chat history with no
- * way for the CS to ever change it. This app has no email delivery wired
- * up (checked: no SMTP/invite flow, "Lupa password" on login is a dead
- * `href="#"`), so generateLink's link is still relayed out-of-band by the
- * owner — the difference is what's inside it.
+ * 10-AUDIT-FE-BE.md #15: creating a CS/owner identity used to need the
+ * Supabase dashboard directly. Sempat memakai generateLink({type:"invite"})
+ * supaya user menetapkan passwordnya sendiri, tapi diganti atas permintaan
+ * Maszen: owner mengetik password di form ini dan menyerahkannya langsung.
+ * Alasannya operasional — merelai tautan undangan ke CS lewat WA ternyata
+ * lebih ribet daripada menyebutkan password.
+ *
+ * Konsekuensi yang diterima secara sadar: password buatan owner bersifat
+ * permanen dan diketahui owner, dan sampai ada UI ganti password, CS tidak
+ * bisa menggantinya sendiri. Owner bisa menimpanya kapan saja lewat tombol
+ * "Reset password" di layar yang sama.
  *
  * The app_users row (brand_id, role, whatsapp) is inserted through the
  * CALLER's own client, not the admin one, so RLS decides whether this
@@ -130,9 +134,14 @@ export async function POST(request: Request) {
 
   const whatsapp = normalizePhoneID(parsed.data.whatsapp);
 
-  const { data: created, error: createError } = await admin.auth.admin.generateLink({
-    type: "invite",
+  // Owner menetapkan password langsung (keputusan Maszen): tidak ada tautan
+  // undangan yang perlu direlai, akun langsung bisa dipakai. email_confirm
+  // true karena tidak ada SMTP — tanpa itu user tidak akan pernah bisa
+  // memverifikasi alamatnya dan login akan ditolak.
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
     email: parsed.data.email,
+    password: parsed.data.password,
+    email_confirm: true,
   });
   if (createError || !created.user) {
     // Pesan mentah dari GoTrue tidak diteruskan ke klien — pola yang sama
@@ -141,7 +150,7 @@ export async function POST(request: Request) {
     // memang perlu tahu bedanya: email yang sudah terpakai bisa dia perbaiki
     // sendiri, sisanya tidak.
     const sudahTerdaftar = /already been registered|already exists/i.test(createError?.message ?? "");
-    console.error("[api/users] POST generateLink", createError);
+    console.error("[api/users] POST createUser", createError);
     return NextResponse.json(
       fail(
         "VALIDATION_ERROR",
@@ -177,9 +186,9 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json(
-    ok({ ...appUserRow, email: parsed.data.email, invite_link: created.properties.action_link }),
-  );
+  // Password tidak dikembalikan — owner sudah mengetiknya sendiri, jadi tidak
+  // perlu dipantulkan balik lewat response.
+  return NextResponse.json(ok({ ...appUserRow, email: parsed.data.email }));
 }
 
 const patchSchema = z.object({
