@@ -47,14 +47,16 @@ export default function LeadIntelligencePage() {
         {rows.map((r) => (
           <div key={r.category_id}>
             <div className="mb-1 flex items-center justify-between text-sm">
-              <span className="text-ink-900">{r.category_name}</span>
+              <span className="text-ink-600">{r.category_name}</span>
               <span className="font-mono text-ink-600">
                 {formatPercent(r.pct_of_filled)} ({formatPercent(r.pct_of_total_lead)} dari total lead)
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-line">
+            {/* Bar diukur dari prototype F-10: tinggi 30px, radius 6px, track
+                paper, isi biru (stage-consult) — bukan brass/8px. */}
+            <div className="h-[30px] w-full overflow-hidden rounded-md bg-paper">
               <div
-                className="h-full rounded-full bg-brass"
+                className="h-full rounded-md bg-blue"
                 style={{ width: `${(r.lead_count / maxCount) * 100}%` }}
               />
             </div>
