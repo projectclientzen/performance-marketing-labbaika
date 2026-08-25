@@ -317,9 +317,10 @@ export default function ClosingFormPage() {
               {fieldErrors.email && <p className="mt-1 text-xs text-danger">{fieldErrors.email}</p>}
             </div>
             {/* Row consent dibungkus card (prototype F-05): pad12 radius8
-                border-line bg-card, teks 13px. Teks consent TIDAK diubah —
-                perbedaan makna vs prototype ("pemasaran" vs "pemberangkatan")
-                adalah keputusan hukum PDP, menunggu Maszen. */}
+                border-line bg-card, teks 13px. Teks "pemasaran" sengaja
+                dipertahankan (bukan "pemberangkatan" seperti mock) — keputusan
+                Maszen: data closing di-upload ke Meta LTV untuk marketing,
+                jadi scope consent-nya memang pemasaran. */}
             <label className="flex items-center gap-2 rounded-lg border border-line bg-card p-3 text-[13px] text-ink-600">
               <input
                 type="checkbox"

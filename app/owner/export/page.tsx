@@ -86,7 +86,7 @@ export default function ExportCenterPage() {
                 setLoadingMeta(false);
               }
             }}
-            className="mt-3 h-10 w-full rounded-lg border border-line text-sm font-medium text-ink-900 disabled:opacity-50"
+            className="mt-3 h-10 w-full rounded-lg bg-brass text-sm font-semibold text-on-brass disabled:opacity-50"
           >
             {loadingMeta ? "Mengunduh..." : "Unduh CSV"}
           </button>
@@ -117,7 +117,7 @@ export default function ExportCenterPage() {
                 setLoadingGass(false);
               }
             }}
-            className="mt-3 h-10 w-full rounded-lg border border-line text-sm font-medium text-ink-900 disabled:opacity-50"
+            className="mt-3 h-10 w-full rounded-lg bg-navy-900 text-sm font-semibold text-white disabled:opacity-50"
           >
             {loadingGass ? "Menyalin..." : "Salin ke clipboard"}
           </button>
