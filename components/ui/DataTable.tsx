@@ -23,6 +23,9 @@ export interface DataTableProps<T> {
   cardTitle: (row: T) => React.ReactNode;
   /** Optional accent value shown top-right of the mobile card (e.g. ROI). */
   cardAccent?: (row: T) => React.ReactNode;
+  /** Optional left-border color for the mobile card (e.g. green/red by health).
+   *  Return a CSS color; null skips the accent border for that row. */
+  cardBorderColor?: (row: T) => string | null;
 }
 
 /**
@@ -39,6 +42,7 @@ export function DataTable<T>({
   defaultSortDir = "desc",
   cardTitle,
   cardAccent,
+  cardBorderColor,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState(defaultSortKey);
   const [sortDir, setSortDir] = useState(defaultSortDir);
@@ -100,8 +104,14 @@ export function DataTable<T>({
       </div>
 
       <div className="space-y-3 md:hidden">
-        {sorted.map((row) => (
-          <div key={rowKey(row)} className="rounded-[10px] border border-line bg-card p-4">
+        {sorted.map((row) => {
+          const borderColor = cardBorderColor?.(row);
+          return (
+          <div
+            key={rowKey(row)}
+            className="rounded-[10px] border border-line bg-card p-4"
+            style={borderColor ? { borderLeftWidth: 3, borderLeftColor: borderColor } : undefined}
+          >
             <div className="mb-2 flex items-center justify-between">
               <span className="font-medium text-ink-900">{cardTitle(row)}</span>
               {cardAccent && <span className="font-mono font-semibold text-brass">{cardAccent(row)}</span>}
@@ -117,7 +127,8 @@ export function DataTable<T>({
                 ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

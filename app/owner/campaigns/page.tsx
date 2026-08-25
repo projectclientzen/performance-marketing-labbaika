@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatPercent, formatROI, formatMultiple } from "@/lib/utils/percent";
 import { todayJakarta } from "@/lib/utils/date";
+import { cppStatus } from "@/lib/utils/profit";
 import { Banner } from "@/components/ui/Banner";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
 
@@ -209,6 +210,11 @@ export default function CampaignQualityPage() {
         defaultSortDir={mobileSort.dir}
         cardTitle={(r) => r.campaign_name}
         cardAccent={(r) => formatROI(r.roi)}
+        // Border kiri kartu: hijau kalau sehat (CPP di bawah break-even),
+        // merah kalau rugi (CPP >= break-even) — prototype F-08 mobile.
+        cardBorderColor={(r) =>
+          cppStatus(r.cpp, r.breakeven_cpp) === "over" ? "var(--color-danger)" : "var(--color-ok)"
+        }
       />
     </div>
   );
