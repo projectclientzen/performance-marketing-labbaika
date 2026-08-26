@@ -47,6 +47,15 @@ export async function DELETE(
 
   if (error) {
     console.error("[api/programs/:id/departures/:departureId] DELETE", error);
+    // CS tak punya SELECT pada closings, jadi penghitung "dipakai" di atas
+    // melihat 0 untuk mereka. Kalau keberangkatan sebenarnya masih dipakai
+    // closing, FK RESTRICT yang menahan di sini — petakan ke pesan yang benar.
+    if (/foreign key|violates|referenced|constraint/i.test(error.message)) {
+      return NextResponse.json(
+        fail("CONFLICT", "Keberangkatan ini masih dipakai closing, jadi tidak bisa dihapus."),
+        { status: httpStatus("CONFLICT") },
+      );
+    }
     return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
   }
   if (!count) {

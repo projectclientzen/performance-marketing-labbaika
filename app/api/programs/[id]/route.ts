@@ -59,6 +59,17 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   if (error) {
     console.error("[api/programs/:id] DELETE", error);
+    // CS tidak punya SELECT pada closings (dibaca lewat view), jadi guard
+    // penghitung closings di atas melihat 0 untuk mereka dan terlewati. Kalau
+    // program sebenarnya masih dipakai closing, delete-nya kena FK RESTRICT di
+    // sini — petakan ke pesan yang sama supaya semua peran dapat penjelasan
+    // yang benar, bukan 500.
+    if (/foreign key|violates|referenced|constraint/i.test(error.message)) {
+      return NextResponse.json(
+        fail("CONFLICT", "Program ini masih dipakai closing, jadi tidak bisa dihapus."),
+        { status: httpStatus("CONFLICT") },
+      );
+    }
     return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
   }
   if (!count) {

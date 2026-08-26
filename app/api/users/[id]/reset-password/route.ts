@@ -76,11 +76,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Itu yang bikin tautan reset terlihat "isinya cuma halaman login".
   // Origin diambil dari header proxy dulu: di belakang nginx, request.url
   // menunjuk ke alamat internal, bukan domain yang dipakai orang.
+  // Utamakan origin yang dikonfigurasi (APP_URL) daripada header proxy yang
+  // bisa dipalsukan. Header hanya jadi cadangan kalau env belum diisi; tautan
+  // hasilnya pun cuma dikembalikan ke pemanggil owner ini, tidak dikirim email
+  // ke pihak lain, jadi dampak spoofing header terbatas. Supabase juga
+  // memvalidasi redirectTo terhadap allowlist-nya.
   const forwardedHost = request.headers.get("x-forwarded-host");
   const forwardedProto = request.headers.get("x-forwarded-proto");
-  const origin = forwardedHost
-    ? `${forwardedProto ?? "https"}://${forwardedHost}`
-    : new URL(request.url).origin;
+  const origin =
+    process.env.APP_URL?.replace(/\/$/, "") ??
+    (forwardedHost ? `${forwardedProto ?? "https"}://${forwardedHost}` : new URL(request.url).origin);
 
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: "recovery",
