@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { MetricCard } from "@/components/ui/MetricCard";
+import { LogoutButton } from "@/components/LogoutButton";
 import { monthKey, monthRange, todayJakarta } from "@/lib/utils/date";
 
 interface LeadReport {
@@ -55,6 +56,10 @@ export default function CsPerformaPage() {
         <div className="grid grid-cols-2 gap-3">
           <MetricCard label="Hari lapor" value={String(reportDays)} loading={loading} />
           <MetricCard label="Total closing" value={String(totalClosing)} loading={loading} />
+        </div>
+
+        <div className="pt-2">
+          <LogoutButton className="flex h-11 w-full items-center justify-center rounded-lg border border-line bg-card text-sm font-medium text-danger" />
         </div>
       </div>
     </div>

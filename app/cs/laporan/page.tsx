@@ -203,6 +203,11 @@ function LaporanHarianForm() {
       <div className="space-y-4 p-4">
         {error && <Banner variant="warn">{error}</Banner>}
         {saved && <Banner variant="ok">{editId ? "Koreksi tersimpan" : "Laporan tersimpan"}</Banner>}
+        {!editId && sources.length === 0 && (
+          <Banner variant="warn">
+            Belum ada sumber lead yang bisa dipilih. Minta owner menambahkan sumber lead dulu.
+          </Banner>
+        )}
         {loadingEdit && <p className="text-sm text-ink-400">Memuat laporan...</p>}
 
         <div className="space-y-4">
@@ -298,13 +303,14 @@ function LaporanHarianForm() {
           })}
         </div>
 
-        {!editId && (
+        {!editId && sources.length > 0 && (
           <button
             type="button"
             onClick={addBlock}
-            className="h-[46px] w-full rounded-lg border border-dashed border-ink-400 text-[15px] font-medium text-ink-600"
+            disabled={blocks.length >= sources.length}
+            className="h-[46px] w-full rounded-lg border border-dashed border-ink-400 text-[15px] font-medium text-ink-600 disabled:opacity-50"
           >
-            + Tambah source
+            {blocks.length >= sources.length ? "Semua sumber sudah ditambahkan" : "+ Tambah source"}
           </button>
         )}
       </div>

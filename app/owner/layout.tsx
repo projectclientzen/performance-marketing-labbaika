@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LogoutButton } from "@/components/LogoutButton";
 
 /**
  * Kerangka layar Owner — F-07 di docs/labbaika-reporting.html.
@@ -137,6 +138,10 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </nav>
           )}
         </div>
+
+        <div className="mt-auto border-t border-navy-700 pt-3">
+          <LogoutButton className="w-full rounded-lg px-3 py-2 text-left text-[13px] text-on-dark-muted transition-colors duration-200 hover:bg-navy-800" />
+        </div>
       </aside>
 
       <main className="min-w-0 flex-1 px-4 py-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-6 md:py-6 md:pb-6">{children}</main>
@@ -168,6 +173,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
                 </Link>
               );
             })}
+            <div className="mt-1 border-t border-line px-4 pb-1 pt-2">
+              <LogoutButton />
+            </div>
           </nav>
         </>
       )}
