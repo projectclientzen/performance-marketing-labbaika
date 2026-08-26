@@ -20,6 +20,11 @@ interface Block {
   cold: number;
   consultation: number;
   offering: number;
+  /** Dikelola trigger T-1 (009), tidak pernah diketik CS — tapi ikut dalam
+   *  `cold + consultation + offering + closing = total_lead` (PRD §71 dan
+   *  constraint 003). Wajib dibawa saat koreksi, kalau tidak selisihnya
+   *  terbaca sebagai "belum dikategorikan" dan simpanan ditolak DB. */
+  closing: number;
 }
 
 interface LeadReport {
@@ -30,10 +35,11 @@ interface LeadReport {
   cold: number;
   consultation: number;
   offering: number;
+  closing: number;
 }
 
 function emptyBlock(sourceId: string): Block {
-  return { source_id: sourceId, total_lead: 0, cold: 0, consultation: 0, offering: 0 };
+  return { source_id: sourceId, total_lead: 0, cold: 0, consultation: 0, offering: 0, closing: 0 };
 }
 
 export default function LaporanHarianPage() {
@@ -88,6 +94,7 @@ function LaporanHarianForm() {
             cold: r.cold,
             consultation: r.consultation,
             offering: r.offering,
+            closing: r.closing ?? 0,
           },
         ]);
       })
@@ -200,7 +207,8 @@ function LaporanHarianForm() {
 
         <div className="space-y-4">
           {!loadingEdit && blocks.map((block, i) => {
-            const sisa = block.total_lead - (block.cold + block.consultation + block.offering);
+            const sisa =
+              block.total_lead - (block.cold + block.consultation + block.offering + block.closing);
             return (
               <div key={i} className="rounded-[10px] border border-line bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
@@ -248,6 +256,23 @@ function LaporanHarianForm() {
                     value={block.offering}
                     onChange={(v) => updateBlock(i, { offering: v })}
                   />
+                  {/* Baris Closing terkunci (prototype F-03): angka ini datang
+                      dari catatan closing lewat trigger, bukan diketik CS —
+                      tapi ikut menghabiskan total lead, jadi harus terlihat
+                      supaya sisanya masuk akal saat mengoreksi laporan. */}
+                  <div className="flex items-center justify-between rounded-lg bg-paper px-3 py-2.5">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-ink-600">
+                      Closing
+                      <span
+                        aria-hidden
+                        title="Dihitung otomatis dari closing yang kamu catat"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-line text-[10px] text-ink-600"
+                      >
+                        i
+                      </span>
+                    </span>
+                    <span className="font-mono text-sm text-ink-900">{block.closing}</span>
+                  </div>
                 </div>
 
                 <div className="mt-3">
@@ -258,6 +283,7 @@ function LaporanHarianForm() {
                       { stage: "cold", value: block.cold },
                       { stage: "consultation", value: block.consultation },
                       { stage: "offering", value: block.offering },
+                      { stage: "closing", value: block.closing },
                     ]}
                   />
                   <div
@@ -295,7 +321,7 @@ function LaporanHarianForm() {
             disabled={
               submitting ||
               blocks.length === 0 ||
-              blocks.some((b) => b.total_lead - (b.cold + b.consultation + b.offering) !== 0)
+              blocks.some((b) => b.total_lead - (b.cold + b.consultation + b.offering + b.closing) !== 0)
             }
             className="h-[50px] rounded-lg bg-brass px-[22px] text-base font-semibold text-on-brass disabled:opacity-50"
           >

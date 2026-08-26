@@ -35,6 +35,7 @@ const PRIMARY = [
 ];
 
 const SECONDARY = [
+  { href: "/owner/rekap", label: "Rekap Lead Harian" },
   { href: "/owner/cs", label: "CS Performance" },
   { href: "/owner/reconciliation", label: "Reconciliation" },
   { href: "/owner/report", label: "Management Report" },
