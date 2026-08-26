@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasOwnerAccess } from "@/lib/auth/roles";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
@@ -38,6 +39,38 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   return NextResponse.json(ok(data));
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, appUser, supabase } = await getAuthedAppUser();
+
+  if (!user) {
+    return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
+  }
+  if (!appUser) {
+    return NextResponse.json(fail("NOT_FOUND", "Profil pengguna tidak ditemukan"), { status: httpStatus("NOT_FOUND") });
+  }
+
+  // Check period lock
+  const { data: report } = await supabase.from("lead_reports").select("id, report_date").eq("id", id).maybeSingle();
+  if (!report) {
+    return NextResponse.json(fail("NOT_FOUND", "Laporan tidak ditemukan"), { status: httpStatus("NOT_FOUND") });
+  }
+
+  const month = report.report_date.slice(0, 7);
+  const { data: lock } = await supabase.from("period_locks").select("locked").eq("brand_id", appUser.brand_id).eq("month", month).maybeSingle();
+  if (lock?.locked && !hasOwnerAccess(appUser.role)) {
+    return NextResponse.json(fail("PERIOD_LOCKED", "Periode sudah dikunci"), { status: httpStatus("PERIOD_LOCKED") });
+  }
+
+  const { error } = await supabase.from("lead_reports").delete().eq("id", id);
+  if (error) {
+    console.error("[api/lead-reports/[id]] DELETE", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
+  }
+
+  return NextResponse.json(ok({ deleted: true }));
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

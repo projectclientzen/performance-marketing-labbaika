@@ -20,10 +20,6 @@ interface Block {
   cold: number;
   consultation: number;
   offering: number;
-  /** Dikelola trigger T-1 (009), tidak pernah diketik CS — tapi ikut dalam
-   *  `cold + consultation + offering + closing = total_lead` (PRD §71 dan
-   *  constraint 003). Wajib dibawa saat koreksi, kalau tidak selisihnya
-   *  terbaca sebagai "belum dikategorikan" dan simpanan ditolak DB. */
   closing: number;
 }
 
@@ -36,6 +32,17 @@ interface LeadReport {
   consultation: number;
   offering: number;
   closing: number;
+}
+
+interface PastReport {
+  id: string;
+  report_date: string;
+  total_lead: number;
+  cold: number;
+  consultation: number;
+  offering: number;
+  closing: number | null;
+  lead_source?: { name: string };
 }
 
 function emptyBlock(sourceId: string): Block {
@@ -53,11 +60,6 @@ export default function LaporanHarianPage() {
 function LaporanHarianForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // 10-AUDIT-FE-BE.md #10: ?id= puts the form in edit mode for one past
-  // report. A report row is one source, so edit mode always has exactly
-  // one block — "Tambah source" and changing the date/source don't apply
-  // to editing an existing row (PATCH /api/lead-reports/:id only accepts
-  // cold/consultation/offering/total_lead, not date or source_id).
   const editId = searchParams.get("id");
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [date, setDate] = useState(todayJakarta());
@@ -66,14 +68,14 @@ function LaporanHarianForm() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!editId);
-  // S1-03: idempotency key dibuat SEKALI per pengisian form (bukan per klik),
-  // supaya klik ganda / retry kirim key yang sama dan tidak lolos cek duplikat.
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [insightTarget, setInsightTarget] = useState<{
     id: string;
     consultation: number;
     offering: number;
   } | null>(null);
+  const [pastReports, setPastReports] = useState<PastReport[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<LeadSource[]>("/api/master/sources").then((data) => {
@@ -81,6 +83,15 @@ function LaporanHarianForm() {
       if (!editId && data.length > 0) setBlocks([emptyBlock(data[0].id)]);
     });
   }, [editId]);
+
+  // Fetch past reports for edit/delete
+  useEffect(() => {
+    const today = todayJakarta();
+    const monthStart = today.slice(0, 7) + "-01";
+    apiFetch<PastReport[]>(`/api/lead-reports?from=${monthStart}&to=${today}`)
+      .then((data) => setPastReports(data.filter((r) => !editId || r.id !== editId)))
+      .catch(() => {});
+  }, [editId, saved]);
 
   useEffect(() => {
     if (!editId) return;
@@ -144,7 +155,7 @@ function LaporanHarianForm() {
       return;
     }
     try {
-      const saved = await apiFetch<
+      const savedReports = await apiFetch<
         { id: string; consultation: number; offering: number }[]
       >("/api/lead-reports", {
         method: "POST",
@@ -155,17 +166,9 @@ function LaporanHarianForm() {
         }),
       });
       setSaved(true);
-      // Key lama sudah terpakai — buat baru untuk pengisian berikutnya.
       setIdempotencyKey(crypto.randomUUID());
-      // Insight sheet targets the block with the most consultation+offering
-      // lead — showing one sheet per block would be more correct for
-      // multi-source days, but adds real complexity for a rare case.
-      // reduce with no initial value throws on an empty array — the batch
-      // RPC can return zero rows (idempotency conflict landed on
-      // on-conflict-do-nothing), which would otherwise crash this page
-      // after the save already succeeded (10-AUDIT-FE-BE.md #8).
-      const primary = saved.length > 0
-        ? saved.reduce((best, r) =>
+      const primary = savedReports.length > 0
+        ? savedReports.reduce((best, r) =>
             r.consultation + r.offering > best.consultation + best.offering ? r : best,
           )
         : null;
@@ -178,6 +181,19 @@ function LaporanHarianForm() {
       setError(e instanceof Error ? e.message : "Laporan tersimpan di perangkat. Akan terkirim saat online.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Hapus laporan ini?")) return;
+    setDeleting(id);
+    try {
+      await apiFetch(`/api/lead-reports/${id}`, { method: "DELETE" });
+      setPastReports((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menghapus");
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -210,8 +226,43 @@ function LaporanHarianForm() {
         )}
         {loadingEdit && <p className="text-sm text-ink-400">Memuat laporan...</p>}
 
-        {/* Desktop (prototype F-03): kartu source berjajar 2 kolom, bukan
-            menumpuk. Mobile tetap satu kolom. */}
+        {/* Laporan sebelumnya — edit/delete */}
+        {pastReports.length > 0 && !editId && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-ink-600">Laporan bulan ini</h2>
+            {pastReports.map((r) => (
+              <div key={r.id} className="flex items-center justify-between rounded-lg border border-line bg-card px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-ink-900">
+                    {r.lead_source?.name ?? "—"} · {r.report_date}
+                  </p>
+                  <p className="text-[12px] text-ink-400">
+                    {r.total_lead} lead · {r.closing ?? 0} closing
+                  </p>
+                </div>
+                <div className="ml-2 flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/cs/laporan?id=${r.id}`)}
+                    className="h-8 rounded-md border border-line px-3 text-[12px] font-medium text-ink-600"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(r.id)}
+                    disabled={deleting === r.id}
+                    className="h-8 rounded-md border border-danger/30 px-3 text-[12px] font-medium text-danger disabled:opacity-50"
+                  >
+                    {deleting === r.id ? "..." : "Hapus"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Desktop (prototype F-03): kartu source berjajar 2 kolom */}
         <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {!loadingEdit && blocks.map((block, i) => {
             return (
@@ -261,10 +312,6 @@ function LaporanHarianForm() {
                     value={block.offering}
                     onChange={(v) => updateBlock(i, { offering: v })}
                   />
-                  {/* Baris Closing terkunci (prototype F-03): angka ini datang
-                      dari catatan closing lewat trigger, bukan diketik CS —
-                      tapi ikut menghabiskan total lead, jadi harus terlihat
-                      supaya sisanya masuk akal saat mengoreksi laporan. */}
                   <div className="flex items-center justify-between rounded-lg bg-paper px-3 py-2.5">
                     <span className="flex items-center gap-1.5 text-sm font-medium text-ink-600">
                       Closing
