@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SUPABASE_URL } from "@/lib/supabase/config";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { hasOwnerAccess } from "@/lib/auth/roles";
@@ -9,7 +10,7 @@ import { ok, fail, httpStatus } from "@/lib/api/envelope";
 function createAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) return null;
-  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRoleKey, {
+  return createSupabaseClient(SUPABASE_URL, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

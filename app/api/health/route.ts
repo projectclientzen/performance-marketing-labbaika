@@ -8,18 +8,9 @@ import { ok, fail } from "@/lib/api/envelope";
  * so only a network/config failure is reported as unhealthy.
  */
 export async function GET() {
-  const missingEnv = [
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  ].filter((key) => !process.env[key]);
-
-  if (missingEnv.length > 0) {
-    return NextResponse.json(
-      fail("INTERNAL_ERROR", `Env var belum diisi: ${missingEnv.join(", ")}`),
-      { status: 503 },
-    );
-  }
-
+  // URL + anon key dipatok di lib/supabase/config (publik), jadi tidak ada lagi
+  // env NEXT_PUBLIC yang perlu dicek di sini — uji konektivitas di bawah yang
+  // membuktikan keduanya benar.
   try {
     const supabase = await createClient();
     const { error } = await supabase.from("app_users").select("id").limit(1);

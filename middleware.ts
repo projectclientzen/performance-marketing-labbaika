@@ -24,12 +24,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
   const { supabaseResponse, user, supabase } = await updateSession(request);
 
   if (!user) {
