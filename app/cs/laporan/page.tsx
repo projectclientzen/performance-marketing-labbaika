@@ -200,7 +200,7 @@ function LaporanHarianForm() {
         />
       </header>
 
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-4 lg:pb-28">
         {error && <Banner variant="warn">{error}</Banner>}
         {saved && <Banner variant="ok">{editId ? "Koreksi tersimpan" : "Laporan tersimpan"}</Banner>}
         {!editId && sources.length === 0 && (
@@ -210,7 +210,9 @@ function LaporanHarianForm() {
         )}
         {loadingEdit && <p className="text-sm text-ink-400">Memuat laporan...</p>}
 
-        <div className="space-y-4">
+        {/* Desktop (prototype F-03): kartu source berjajar 2 kolom, bukan
+            menumpuk. Mobile tetap satu kolom. */}
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {!loadingEdit && blocks.map((block, i) => {
             return (
               <div key={i} className="rounded-[10px] border border-line bg-card p-4">
@@ -307,7 +309,7 @@ function LaporanHarianForm() {
         )}
       </div>
 
-      <div className="fixed bottom-16 left-0 right-0 border-t border-line bg-card px-[18px] py-3.5 shadow-lg">
+      <div className="fixed bottom-16 left-0 right-0 z-20 border-t border-line bg-card px-[18px] py-3.5 shadow-lg lg:bottom-0 lg:left-[220px]">
         <div className="mx-auto flex max-w-lg items-center gap-3.5">
           <div className="flex-1">
             <p className="text-[11px] text-ink-400">Total lead</p>

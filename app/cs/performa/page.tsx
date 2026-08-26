@@ -33,7 +33,7 @@ export default function CsPerformaPage() {
   const reportDays = new Set(reports.map((r) => r.report_date)).size;
 
   return (
-    <div>
+    <div className="lg:mx-auto lg:max-w-2xl">
       {/* Struktur prototype F-09 "Performa saya": title bar navy + hero navy +
           grid tile. Hero memakai Closing rate (metrik nyata), BUKAN ROI-per-CS
           yang dibatalkan Maszen (§25) — spend hanya per-campaign, tak bisa

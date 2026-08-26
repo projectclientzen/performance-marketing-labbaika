@@ -214,8 +214,40 @@ export default function ClosingFormPage() {
   }
 
   return (
-    <div className="pb-6">
-      <header className="border-b border-line bg-card px-[18px] py-3.5">
+    <div className="pb-6 lg:grid lg:grid-cols-[280px_1fr] lg:gap-8 lg:p-8 lg:pb-8">
+      {/* Rail langkah vertikal — desktop saja (prototype F-05 desktop: kolom
+          280px). Mobile pakai header + progress bar horizontal di bawah. */}
+      <aside className="hidden lg:block">
+        <h1 className="mb-5 font-display text-xl font-bold text-ink-900">Catat closing</h1>
+        <ol className="space-y-1">
+          {STEPS.map((label, i) => {
+            const done = i < step;
+            const current = i === step;
+            return (
+              <li
+                key={label}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+                  current ? "bg-brass-lo font-semibold text-ink-900" : "text-ink-600"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                    done || current ? "bg-brass text-on-brass" : "bg-line text-ink-600"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                {label}
+              </li>
+            );
+          })}
+        </ol>
+        <Link href="/cs/closing/riwayat" className="mt-4 inline-block px-3 text-sm font-medium text-ink-600">
+          Riwayat closing
+        </Link>
+      </aside>
+
+      <header className="border-b border-line bg-card px-[18px] py-3.5 lg:hidden">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -242,7 +274,7 @@ export default function ClosingFormPage() {
         </p>
       </header>
 
-      <div className="space-y-5 p-4">
+      <div className="space-y-5 p-4 lg:p-0">
         {error && <Banner variant="danger">{error}</Banner>}
 
         {conflict && (

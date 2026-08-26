@@ -57,7 +57,7 @@ export default function CsHomePage() {
   const hasReportedToday = todaysReports.length > 0;
 
   return (
-    <div>
+    <div className="lg:mx-auto lg:max-w-4xl">
       <header className="bg-navy-900 px-[22px] pb-[18px] pt-4 text-white">
         <p className="text-[13px] text-on-dark-muted">{formatDateLong(today)}</p>
         <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight">
