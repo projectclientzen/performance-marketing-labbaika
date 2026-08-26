@@ -291,12 +291,6 @@ function LaporanHarianForm() {
                       { stage: "closing", value: block.closing },
                     ]}
                   />
-                  <div
-                    className={`mt-3 flex items-center gap-1.5 text-[13px] ${sisa === 0 ? "text-ok" : "text-warn-ink"}`}
-                  >
-                    <span className={`h-[7px] w-[7px] rounded-full ${sisa === 0 ? "bg-ok" : "bg-warn"}`} />
-                    {sisa === 0 ? "Semua lead sudah dikategorikan" : `Sisa belum dikategorikan: ${sisa}`}
-                  </div>
                 </div>
               </div>
             );
