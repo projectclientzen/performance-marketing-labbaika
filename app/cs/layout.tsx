@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/cs", label: "Beranda", icon: "⌂" },
   { href: "/cs/laporan", label: "Laporan", icon: "▤" },
   { href: "/cs/closing", label: "Closing", icon: "✓" },
+  { href: "/cs/programs", label: "Program", icon: "❖" },
   { href: "/cs/performa", label: "Performa", icon: "◔" },
 ];
 
@@ -36,7 +37,7 @@ export default function CsLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2.5 px-4 pb-5 pt-6">
           <div className="flex h-[34px] w-[34px] items-center justify-center overflow-hidden rounded-[9px] bg-card">
             <Image
-              src="/logo.png"
+              src="/logo/labbaika-icon.jpg"
               alt="Labbaika"
               width={34}
               height={34}

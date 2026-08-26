@@ -212,8 +212,6 @@ function LaporanHarianForm() {
 
         <div className="space-y-4">
           {!loadingEdit && blocks.map((block, i) => {
-            const sisa =
-              block.total_lead - (block.cold + block.consultation + block.offering + block.closing);
             return (
               <div key={i} className="rounded-[10px] border border-line bg-card p-4">
                 <div className="mb-3 flex items-center justify-between">
