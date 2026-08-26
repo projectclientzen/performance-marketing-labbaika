@@ -34,6 +34,12 @@ const PRIMARY = [
   { href: "/owner/export", label: "Export", icon: "⇩" },
 ];
 
+// Mobile: tiga tujuan utama + tombol menu (☰) menggantikan Export di tab bar.
+// Export ikut pindah ke dalam menu — dipakai sesekali, tidak sesering tiga
+// layar analitik di sebelahnya. Sidebar desktop tidak ikut berubah: di sana
+// keempatnya muat sekaligus, persis prototype.
+const MOBILE_TABS = PRIMARY.slice(0, 3);
+
 const SECONDARY = [
   { href: "/owner/rekap", label: "Rekap Lead Harian" },
   { href: "/owner/cs", label: "CS Performance" },
@@ -47,6 +53,10 @@ const SECONDARY = [
   { href: "/owner/settings/users", label: "User" },
 ];
 
+// Isi menu "Lainnya" di mobile — Export di urutan pertama karena ia satu
+// kelas dengan tab bar, sisanya layar sekunder.
+const MOBILE_MENU = [{ href: "/owner/export", label: "Export" }, ...SECONDARY];
+
 function isActive(pathname: string, href: string) {
   return href === "/owner" ? pathname === "/owner" : pathname.startsWith(href);
 }
@@ -54,47 +64,17 @@ function isActive(pathname: string, href: string) {
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [showMore, setShowMore] = useState(false);
-  const secondaryActive = SECONDARY.some((i) => isActive(pathname, i.href));
+  const menuActive = MOBILE_MENU.some((i) => isActive(pathname, i.href));
 
   return (
     <div className="min-h-screen bg-paper md:flex">
-      {/* Header mobile: hanya logo + pengungkap "Lainnya" untuk 9 layar
-          sekunder. Judul tiap layar ("Overview", "Campaign", dst) ada di
-          dalam halamannya sendiri, bukan di kerangka ini — sama seperti
-          prototype, yang tidak mengulang judul di dua tempat. */}
-      <header className="relative flex items-center justify-between border-b border-line bg-card px-4 py-3 md:hidden">
+      {/* Header mobile: hanya identitas. Navigasi seluruhnya di tab bar
+          bawah — lebih terjangkau ibu jari daripada pojok kanan atas. */}
+      <header className="flex items-center border-b border-line bg-card px-4 py-3 md:hidden">
         <Link href="/owner" className="flex items-center gap-2">
           <Image src="/logo/labbaika-icon.jpg" alt="" width={24} height={24} className="rounded" priority />
           <span className="font-display text-sm font-semibold text-ink-900">Labbaika</span>
         </Link>
-        <button
-          type="button"
-          onClick={() => setShowMore((v) => !v)}
-          aria-expanded={showMore}
-          className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors duration-200 ${
-            secondaryActive ? "font-medium text-brass" : "text-ink-400"
-          }`}
-        >
-          Lainnya ▾
-        </button>
-
-        {showMore && (
-          <nav className="absolute right-4 top-full z-10 mt-1 w-56 rounded-card border border-line bg-card py-1.5 shadow-lg">
-            {SECONDARY.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setShowMore(false)}
-                aria-current={isActive(pathname, item.href) ? "page" : undefined}
-                className={`block px-4 py-2 text-sm transition-colors duration-200 ${
-                  isActive(pathname, item.href) ? "font-medium text-brass" : "text-ink-600 hover:bg-paper"
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
       </header>
 
       <aside className="hidden w-[220px] shrink-0 flex-col bg-ink-900 px-4 py-6 md:flex">
@@ -161,16 +141,47 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
 
       <main className="min-w-0 flex-1 px-4 py-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-6 md:py-6 md:pb-6">{children}</main>
 
-      {/* Bottom tab bar mobile — diukur dari frame mobile F-07: bg terang,
-          border atas, aktif brass, nonaktif ink-400. Pola sama persis
-          dengan app/cs/layout.tsx supaya bahasa visual satu sistem. */}
-      <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
-        {PRIMARY.map((item) => {
+      {/* Menu "Lainnya" naik dari bawah, sejajar tombol pemicunya di tab
+          bar — bukan turun dari pojok kanan atas seperti sebelumnya. */}
+      {showMore && (
+        <>
+          <button
+            type="button"
+            aria-label="Tutup menu"
+            onClick={() => setShowMore(false)}
+            className="fixed inset-0 z-10 bg-scrim md:hidden"
+          />
+          <nav className="fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] left-0 right-0 z-20 max-h-[60vh] overflow-y-auto border-y border-line bg-card py-1.5 md:hidden">
+            {MOBILE_MENU.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setShowMore(false)}
+                  aria-current={active ? "page" : undefined}
+                  className={`block px-4 py-2.5 text-sm transition-colors duration-200 ${
+                    active ? "font-medium text-brass" : "text-ink-600"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </>
+      )}
+
+      {/* Bottom tab bar mobile — tiga tujuan utama + tombol menu. Pola dan
+          ukurannya sama dengan app/cs/layout.tsx supaya satu bahasa visual. */}
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
+        {MOBILE_TABS.map((item) => {
           const active = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setShowMore(false)}
               aria-current={active ? "page" : undefined}
               className={`flex flex-1 flex-col items-center gap-1 py-2.5 pb-3 text-[11px] ${
                 active ? "font-semibold text-brass" : "font-normal text-ink-400"
@@ -183,6 +194,19 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setShowMore((v) => !v)}
+          aria-expanded={showMore}
+          className={`flex flex-1 flex-col items-center gap-1 py-2.5 pb-3 text-[11px] ${
+            showMore || menuActive ? "font-semibold text-brass" : "font-normal text-ink-400"
+          }`}
+        >
+          <span aria-hidden className="text-lg leading-none">
+            ☰
+          </span>
+          Lainnya
+        </button>
       </nav>
     </div>
   );
