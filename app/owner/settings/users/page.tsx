@@ -27,6 +27,9 @@ export default function UserManagementPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Konfirmasi dua-ketuk, bukan window.confirm(): dialog native sering
+  // diblokir/ditekan di browser HP, jadi tombolnya terlihat "tidak berfungsi".
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function load() {
     apiFetch<UserRow[]>("/api/users").then(setUsers).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
@@ -65,9 +68,13 @@ export default function UserManagementPage() {
   }
 
   async function deleteUser(u: UserRow) {
-    if (!window.confirm(`Hapus user ${u.full_name} secara permanen? Tindakan ini tidak bisa dibatalkan.`)) {
+    // Ketukan pertama hanya meminta konfirmasi (tombol berubah jadi "Yakin,
+    // hapus?"); ketukan kedua yang benar-benar menghapus.
+    if (confirmDeleteId !== u.id) {
+      setConfirmDeleteId(u.id);
       return;
     }
+    setConfirmDeleteId(null);
     setDeletingId(u.id);
     setError(null);
     setNotice(null);
@@ -171,9 +178,17 @@ export default function UserManagementPage() {
             type="button"
             onClick={() => deleteUser(u)}
             disabled={deletingId === u.id}
-            className="h-9 rounded-lg border border-danger/40 px-3 text-sm font-medium text-danger disabled:opacity-50"
+            className={`h-9 rounded-lg px-3 text-sm font-medium disabled:opacity-50 ${
+              confirmDeleteId === u.id
+                ? "bg-danger text-white"
+                : "border border-danger/40 text-danger"
+            }`}
           >
-            {deletingId === u.id ? "Menghapus..." : "Hapus"}
+            {deletingId === u.id
+              ? "Menghapus..."
+              : confirmDeleteId === u.id
+                ? "Yakin, hapus?"
+                : "Hapus"}
           </button>
         </div>
       ),
