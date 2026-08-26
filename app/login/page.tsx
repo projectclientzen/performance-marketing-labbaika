@@ -68,9 +68,8 @@ export default function LoginPage() {
               <Image src="/logo/labbaika-full.png" alt="Labbaika" width={120} height={120} className="h-full w-full object-cover" priority />
             </div>
             <h1 className="font-display text-[28px] font-bold tracking-tight text-white md:text-[26px] md:tracking-[-0.01em] md:text-ink-900">Masuk</h1>
-            <p className="mb-7 mt-1.5 text-sm text-on-dark-muted md:mb-7 md:mt-1.5 md:text-ink-600">
-              <span className="md:hidden">Laporan harian Labbaika Group</span>
-              <span className="hidden md:inline">Gunakan akun yang diberikan Owner</span>
+            <p className="mb-7 mt-1.5 text-sm text-on-dark-muted md:text-ink-600">
+              Laporan harian Labbaika Group
             </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
