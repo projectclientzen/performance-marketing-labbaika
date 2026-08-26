@@ -36,25 +36,51 @@ export async function GET(request: Request) {
     return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
   }
 
+  if (!META_TOKEN) {
+    return NextResponse.json(fail("INTERNAL_ERROR", "META_ACCESS_TOKEN belum dikonfigurasi di server"), {
+      status: httpStatus("INTERNAL_ERROR"),
+    });
+  }
+
   const { searchParams } = new URL(request.url);
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jakarta" });
   const from = searchParams.get("from") ?? `${today.slice(0, 7)}-01`;
   const to = searchParams.get("to") ?? today;
 
-  // 1. Fetch insights from Meta API
+  // 1. Fetch insights from Meta API.
+  //    - time_increment=1: satu baris PER HARI per campaign, bukan satu agregat
+  //      untuk seluruh rentang yang ditumpuk di tanggal awal. Tanpa ini,
+  //      filter tanggal dashboard (mis. 7 hari terakhir) salah, dan re-sync
+  //      rentang berbeda bisa salah atribusi. Dengan per-hari, upsert per
+  //      (brand,level,entity,date) jadi idempoten.
+  //    - paging: Meta memecah hasil; ikuti paging.next sampai habis supaya
+  //      campaign di halaman berikutnya tidak terlewat (dibatasi agar aman).
   const fields = "campaign_id,campaign_name,spend,impressions,reach,clicks,actions,date_start";
-  const metaUrl = `${META_API}/${META_ACCOUNT}/insights?level=campaign&fields=${fields}&time_range=${JSON.stringify({ since: from, until: to })}&access_token=${META_TOKEN}`;
+  const insights: MetaInsight[] = [];
+  let nextUrl: string | null =
+    `${META_API}/${META_ACCOUNT}/insights?level=campaign&fields=${fields}` +
+    `&time_increment=1&limit=100` +
+    `&time_range=${encodeURIComponent(JSON.stringify({ since: from, until: to }))}` +
+    `&access_token=${META_TOKEN}`;
 
-  let insights: MetaInsight[];
   try {
-    const metaRes = await fetch(metaUrl);
-    const metaJson = await metaRes.json();
-    if (metaJson.error) {
-      return NextResponse.json(fail("VALIDATION_ERROR", metaJson.error.message), {
-        status: httpStatus("BAD_REQUEST"),
-      });
+    for (let page = 0; page < 50 && nextUrl; page++) {
+      const metaRes = await fetch(nextUrl);
+      const metaJson: {
+        error?: { message: string };
+        data?: MetaInsight[];
+        paging?: { next?: string };
+      } = await metaRes.json();
+      if (metaJson.error) {
+        // 190 = token invalid/expired, 17/613 = rate limit — sampaikan apa adanya
+        // supaya owner tahu bedanya (dan pesan mentah Meta memang aman ditampilkan).
+        return NextResponse.json(fail("VALIDATION_ERROR", metaJson.error.message), {
+          status: httpStatus("BAD_REQUEST"),
+        });
+      }
+      insights.push(...(metaJson.data ?? []));
+      nextUrl = metaJson.paging?.next ?? null;
     }
-    insights = metaJson.data ?? [];
   } catch (e) {
     return NextResponse.json(fail("VALIDATION_ERROR", String(e)), {
       status: httpStatus("INTERNAL_ERROR"),
