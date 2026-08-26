@@ -106,10 +106,10 @@ export default function LoginPage() {
           </p>
         )}
 
-        {/* 10-AUDIT-FE-BE.md #26: there's no self-serve reset page (no
-            SMTP, no reset route) -- a link here would do nothing. Owner
-            can generate a one-time reset link from Manajemen user
-            (app/owner/settings/users) and relay it directly. */}
+        {/* Masih tanpa SMTP, jadi tidak ada tombol "kirim email" di sini:
+            tautan pemulihan dibuat owner dari Manajemen user, atau dari
+            Supabase Dashboard. Yang berubah, tautannya kini punya halaman
+            yang menerimanya — /reset-password (10-AUDIT-FE-BE.md #26). */}
         <p className="text-[13px] text-on-dark-muted md:text-ink-600">Lupa password? Hubungi owner untuk reset.</p>
 
         <button

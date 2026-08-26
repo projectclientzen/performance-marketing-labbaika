@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { hasOwnerAccess } from "@/lib/auth/roles";
 
-const PUBLIC_PATHS = ["/login"];
+// /reset-password harus publik: pemiliknya justru BELUM bisa login — itu
+// alasan dia ada. Tanpa ini, tautan pemulihan Supabase dilempar ke /login
+// dan terlihat seperti tautan rusak (10-AUDIT-FE-BE.md #26).
+const PUBLIC_PATHS = ["/login", "/reset-password"];
 const OWNER_ONLY_PREFIXES = ["/owner"];
 
 /**

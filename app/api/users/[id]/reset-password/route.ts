@@ -29,7 +29,7 @@ function createAdminClient() {
  * id to an email and generate the link. It never decides who's allowed to
  * request a reset for whom.
  */
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { user, appUser, supabase } = await getAuthedAppUser();
   if (!user) {
@@ -71,9 +71,21 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     });
   }
 
+  // Tanpa redirectTo, tautan pemulihan mendarat di Site URL default —
+  // yaitu halaman masuk, yang tidak bisa berbuat apa-apa dengan tokennya.
+  // Itu yang bikin tautan reset terlihat "isinya cuma halaman login".
+  // Origin diambil dari header proxy dulu: di belakang nginx, request.url
+  // menunjuk ke alamat internal, bukan domain yang dipakai orang.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const origin = forwardedHost
+    ? `${forwardedProto ?? "https"}://${forwardedHost}`
+    : new URL(request.url).origin;
+
   const { data: link, error: linkError } = await admin.auth.admin.generateLink({
     type: "recovery",
     email: authUser.user.email,
+    options: { redirectTo: `${origin}/reset-password` },
   });
   if (linkError || !link.properties) {
     // Raw GoTrue message not forwarded to the client — same pattern as
