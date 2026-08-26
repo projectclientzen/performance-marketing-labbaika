@@ -234,3 +234,75 @@ export async function PATCH(request: Request) {
   }
   return NextResponse.json(ok(data));
 }
+
+/**
+ * Hapus user permanen. Hanya owner/advertiser (halaman ini owner-only, dan
+ * guard di sini adalah batas keamanan sebenarnya, bukan sekadar UI).
+ *
+ * Penghapusan sengaja "keras tapi aman": app_users direferensikan banyak
+ * tabel (lead_reports.cs_id, closings.cs_id, audit_logs.user_id, dst) dengan
+ * RESTRICT, jadi user yang sudah punya jejak aktivitas TIDAK bisa dihapus —
+ * Postgres menolak dan transaksinya batal utuh (tidak ada baris yatim). Untuk
+ * user semacam itu jalurnya "Nonaktifkan", bukan hapus. Hapus hanya untuk
+ * user yang salah dibuat dan belum sempat berbuat apa-apa.
+ */
+export async function DELETE(request: Request) {
+  const { user, appUser, supabase } = await getAuthedAppUser();
+  if (!user) {
+    return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
+  }
+  if (!appUser || !hasOwnerAccess(appUser.role)) {
+    return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
+  }
+
+  const targetId = new URL(request.url).searchParams.get("id");
+  if (!targetId) {
+    return NextResponse.json(fail("VALIDATION_ERROR", "id user wajib diisi"), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
+  if (targetId === appUser.id) {
+    return NextResponse.json(fail("VALIDATION_ERROR", "Tidak bisa menghapus akun sendiri"), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
+
+  // RLS (owner_all): pastikan target memang ada di brand owner ini sebelum
+  // menyentuh admin API. brand_id tidak pernah datang dari request.
+  const { data: target } = await supabase
+    .from("app_users")
+    .select("id")
+    .eq("id", targetId)
+    .maybeSingle();
+  if (!target) {
+    return NextResponse.json(fail("NOT_FOUND", "User tidak ditemukan"), {
+      status: httpStatus("NOT_FOUND"),
+    });
+  }
+
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json(fail("INTERNAL_ERROR", "SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi"), {
+      status: httpStatus("INTERNAL_ERROR"),
+    });
+  }
+
+  // Menghapus auth.users memicu cascade ke app_users. Kalau app_users masih
+  // direferensikan tabel lain, cascade gagal dan seluruh operasi dibatalkan.
+  const { error } = await admin.auth.admin.deleteUser(targetId);
+  if (error) {
+    console.error("[api/users] DELETE", error);
+    const punyaRiwayat = /foreign key|violates|referenced|constraint/i.test(error.message);
+    return NextResponse.json(
+      fail(
+        "VALIDATION_ERROR",
+        punyaRiwayat
+          ? "User ini sudah punya riwayat (laporan/closing/log), jadi tidak bisa dihapus. Gunakan Nonaktifkan."
+          : "Gagal menghapus user",
+      ),
+      { status: httpStatus("VALIDATION_ERROR") },
+    );
+  }
+
+  return NextResponse.json(ok({ deleted: true }));
+}

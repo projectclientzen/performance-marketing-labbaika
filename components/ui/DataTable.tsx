@@ -26,6 +26,10 @@ export interface DataTableProps<T> {
   /** Optional left-border color for the mobile card (e.g. green/red by health).
    *  Return a CSS color; null skips the accent border for that row. */
   cardBorderColor?: (row: T) => string | null;
+  /** Optional action controls rendered at the foot of each mobile card.
+   *  Desktop shows these through a normal column; the card view otherwise
+   *  drops action-only columns (they have no cardLabel). */
+  cardActions?: (row: T) => React.ReactNode;
 }
 
 /**
@@ -43,6 +47,7 @@ export function DataTable<T>({
   cardTitle,
   cardAccent,
   cardBorderColor,
+  cardActions,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState(defaultSortKey);
   const [sortDir, setSortDir] = useState(defaultSortDir);
@@ -126,6 +131,7 @@ export function DataTable<T>({
                   </div>
                 ))}
             </div>
+            {cardActions && <div className="mt-3 flex flex-wrap gap-2">{cardActions(row)}</div>}
           </div>
           );
         })}

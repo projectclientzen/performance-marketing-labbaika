@@ -26,6 +26,7 @@ export default function UserManagementPage() {
   const [linkBanner, setLinkBanner] = useState<{ label: string; link: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function load() {
     apiFetch<UserRow[]>("/api/users").then(setUsers).catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"));
@@ -60,6 +61,24 @@ export default function UserManagementPage() {
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal mengubah user");
+    }
+  }
+
+  async function deleteUser(u: UserRow) {
+    if (!window.confirm(`Hapus user ${u.full_name} secara permanen? Tindakan ini tidak bisa dibatalkan.`)) {
+      return;
+    }
+    setDeletingId(u.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiFetch(`/api/users?id=${u.id}`, { method: "DELETE" });
+      setNotice(`User ${u.full_name} dihapus.`);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menghapus user");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -148,10 +167,22 @@ export default function UserManagementPage() {
           >
             {u.is_active ? "Nonaktifkan" : "Aktifkan"}
           </button>
+          <button
+            type="button"
+            onClick={() => deleteUser(u)}
+            disabled={deletingId === u.id}
+            className="h-9 rounded-lg border border-danger/40 px-3 text-sm font-medium text-danger disabled:opacity-50"
+          >
+            {deletingId === u.id ? "Menghapus..." : "Hapus"}
+          </button>
         </div>
       ),
     },
   ];
+
+  // Aksi yang sama dipakai ulang di kartu mobile — tanpa ini, tombol kelola
+  // hanya muncul di tabel desktop dan tak terjangkau dari HP.
+  const rowActions = columns[columns.length - 1].render!;
 
   return (
     <div className="space-y-4">
@@ -246,6 +277,7 @@ export default function UserManagementPage() {
         rows={users}
         rowKey={(u) => u.id}
         cardTitle={(u) => u.full_name}
+        cardActions={(u) => rowActions(u)}
         cardAccent={(u) => (u.is_active ? "Aktif" : "Nonaktif")}
       />
     </div>
