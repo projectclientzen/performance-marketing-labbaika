@@ -48,6 +48,7 @@ const SECONDARY = [
   { href: "/owner/report", label: "Management Report" },
   { href: "/owner/programs", label: "Program & Harga" },
   { href: "/owner/riwayat", label: "Riwayat" },
+  { href: "/owner/settings/sources", label: "Lead Source" },
   { href: "/owner/settings/import", label: "Import Ads" },
   { href: "/owner/settings/lock", label: "Period Lock" },
   { href: "/owner/settings/audit", label: "Audit Log" },

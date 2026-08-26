@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/cs", label: "Beranda", icon: "⌂" },
   { href: "/cs/laporan", label: "Laporan", icon: "▤" },
   { href: "/cs/closing", label: "Closing", icon: "✓" },
+  { href: "/cs/programs", label: "Program", icon: "❖" },
   { href: "/cs/performa", label: "Performa", icon: "◔" },
 ];
 

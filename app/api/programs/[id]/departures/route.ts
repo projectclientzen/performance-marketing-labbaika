@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getAuthedAppUser } from "@/lib/auth/session";
-import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { departureSchema } from "@/lib/schemas/program";
 
@@ -37,9 +36,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       status: httpStatus("NOT_FOUND"),
     });
   }
-  if (!hasOwnerAccess(appUser.role)) {
-    return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
-  }
+  // Program/harga/keberangkatan kini boleh dikelola semua peran dalam brand
+  // (owner, advertiser, CS) — keputusan owner untuk upsell/cross-sell. RLS
+  // (migrasi 029) yang menjaga batas brand; guard peran di sini dilepas.
 
   const body = await request.json().catch(() => null);
   const parsed = departureSchema.safeParse({ ...body, program_id: id });
