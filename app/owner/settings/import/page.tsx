@@ -4,6 +4,62 @@ import { useState, useRef } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Banner } from "@/components/ui/Banner";
 
+/** Sync section — fetches data directly from Meta Marketing API. */
+function MetaSyncSection() {
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  async function handleSync() {
+    setSyncing(true);
+    setSyncResult(null);
+    setSyncError(null);
+    try {
+      const data = await apiFetch<{
+        synced: number;
+        campaigns: number;
+        message: string;
+      }>("/api/ads/meta-sync");
+      setSyncResult(data.message);
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : "Gagal sync");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[10px] border border-line bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink-900">Import dari Meta Ads</h2>
+          <p className="mt-0.5 text-[13px] text-ink-400">
+            Sync campaign performance langsung dari Meta Marketing API
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncing}
+          className="h-[42px] shrink-0 rounded-lg bg-navy-900 px-5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {syncing ? "Syncing..." : "Sync dari Meta"}
+        </button>
+      </div>
+      {syncResult && (
+        <Banner variant="ok">
+          {syncResult}
+        </Banner>
+      )}
+      {syncError && (
+        <Banner variant="danger">
+          {syncError}
+        </Banner>
+      )}
+    </div>
+  );
+}
+
 /**
  * F-16 Ads data import. The prototype (docs/labbaika-reporting.html) has a
  * file drop zone plus a column-mapping table (csv header → internal
@@ -132,7 +188,10 @@ export default function AdsImportPage() {
         </Banner>
       )}
 
+      <MetaSyncSection />
+
       <div className="space-y-3 rounded-[10px] border border-line bg-card p-4">
+        <h2 className="text-sm font-semibold text-ink-600">Import CSV</h2>
         <div className="flex flex-wrap gap-2">
           <select value={level} onChange={(e) => setLevel(e.target.value as typeof level)} className="h-10 rounded-lg border border-line px-2 text-sm">
             <option value="account">Account</option>
