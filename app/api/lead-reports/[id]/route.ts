@@ -64,10 +64,34 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json(fail("PERIOD_LOCKED", "Periode sudah dikunci"), { status: httpStatus("PERIOD_LOCKED") });
   }
 
-  const { error } = await supabase.from("lead_reports").delete().eq("id", id);
+  // .select() supaya kita tahu baris benar-benar terhapus. Tanpa ini, kalau
+  // RLS memblokir diam-diam (mis. CS tanpa policy delete), delete mengenai 0
+  // baris tanpa error dan UI mengira berhasil — laporannya muncul lagi saat
+  // refresh.
+  const { data: removed, error } = await supabase
+    .from("lead_reports")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
   if (error) {
     console.error("[api/lead-reports/[id]] DELETE", error);
-    return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
+    const punyaRelasi = /foreign key|violates|referenced|constraint/i.test(error.message);
+    return NextResponse.json(
+      fail(
+        punyaRelasi ? "CONFLICT" : "INTERNAL_ERROR",
+        punyaRelasi
+          ? "Laporan ini sudah dipakai (closing/insight terkait), jadi tidak bisa dihapus."
+          : undefined,
+      ),
+      { status: httpStatus(punyaRelasi ? "CONFLICT" : "INTERNAL_ERROR") },
+    );
+  }
+
+  if (!removed || removed.length === 0) {
+    return NextResponse.json(fail("FORBIDDEN", "Tidak bisa menghapus laporan ini"), {
+      status: httpStatus("FORBIDDEN"),
+    });
   }
 
   return NextResponse.json(ok({ deleted: true }));
