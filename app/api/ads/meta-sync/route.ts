@@ -149,7 +149,7 @@ export async function GET(request: Request) {
 
     // Count leads from actions
     const leadAction = insight.actions?.find(
-      (a) => a.action_type === "offsite_conversion.fb_pixel_lead" || a.action_type === "lead",
+      (a) => a.action_type === "onsite_conversion.messaging_conversation_started_7d",
     );
     const leads = leadAction ? parseInt(leadAction.value, 10) || 0 : 0;
 
