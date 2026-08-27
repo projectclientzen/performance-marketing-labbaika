@@ -1,4 +1,5 @@
 "use client";
+import { uuid } from "@/lib/utils/uuid";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -68,7 +69,7 @@ function LaporanHarianForm() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!editId);
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState(() => uuid());
   const [insightTarget, setInsightTarget] = useState<{
     id: string;
     consultation: number;
@@ -166,7 +167,7 @@ function LaporanHarianForm() {
         }),
       });
       setSaved(true);
-      setIdempotencyKey(crypto.randomUUID());
+      setIdempotencyKey(uuid());
       const primary = savedReports.length > 0
         ? savedReports.reduce((best, r) =>
             r.consultation + r.offering > best.consultation + best.offering ? r : best,
