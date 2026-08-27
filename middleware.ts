@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
-import { hasOwnerAccess } from "@/lib/auth/roles";
+import { hasOwnerAccess, hasHrdAccess } from "@/lib/auth/roles";
 
 // /reset-password harus publik: pemiliknya justru BELUM bisa login — itu
 // alasan dia ada. Tanpa ini, tautan pemulihan Supabase dilempar ke /login
 // dan terlihat seperti tautan rusak (10-AUDIT-FE-BE.md #26).
 const PUBLIC_PATHS = ["/login", "/reset-password"];
 const OWNER_ONLY_PREFIXES = ["/owner"];
+// Modul HR — dijaga terpisah (owner + hrd). Halaman /hr belum ada; guard ini
+// disiapkan lebih dulu supaya begitu FE HR dibuat, langsung terlindungi.
+const HR_ONLY_PREFIXES = ["/hr"];
 
 /**
  * Route guard — enforced server-side, not just hidden in the UI (CC-B15
@@ -33,14 +36,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (OWNER_ONLY_PREFIXES.some((p) => path.startsWith(p))) {
+  const isOwnerOnly = OWNER_ONLY_PREFIXES.some((p) => path.startsWith(p));
+  const isHrOnly = HR_ONLY_PREFIXES.some((p) => path.startsWith(p));
+
+  if (isOwnerOnly || isHrOnly) {
     const { data: appUser } = await supabase
       .from("app_users")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (!hasOwnerAccess(appUser?.role)) {
+    const allowed = isHrOnly ? hasHrdAccess(appUser?.role) : hasOwnerAccess(appUser?.role);
+    if (!allowed) {
       const url = request.nextUrl.clone();
       url.pathname = "/no-access";
       return NextResponse.rewrite(url, { status: 403 });

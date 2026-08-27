@@ -22,3 +22,16 @@ const OWNER_LEVEL: readonly string[] = ['owner', 'advertiser', 'hrd'];
 export function hasOwnerAccess(role: string | null | undefined): boolean {
   return role != null && OWNER_LEVEL.includes(role);
 }
+
+// ---------------------------------------------------------------------------
+// Modul HR (SDM). Aksesnya SENGAJA berbeda dari hasOwnerAccess: hanya owner
+// (superadmin) dan hrd — advertiser TIDAK termasuk, karena advertiser fokus
+// iklan/marketing, bukan kepegawaian. Dipakai untuk menjaga rute /hr dan
+// endpoint HR nanti. Saat ini HRD masih punya akses owner-level penuh juga
+// (OWNER_LEVEL); pemisahan ini menyiapkan modul HR yang UI/UX-nya menyusul.
+const HR_LEVEL: readonly string[] = ['owner', 'hrd'];
+
+/** True untuk owner dan hrd; false untuk advertiser, cs, dan peran tak dikenal. */
+export function hasHrdAccess(role: string | null | undefined): boolean {
+  return role != null && HR_LEVEL.includes(role);
+}
