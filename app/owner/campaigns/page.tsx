@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatPercent, formatROI, formatMultiple } from "@/lib/utils/percent";
-import { todayJakarta } from "@/lib/utils/date";
 import { cppStatus } from "@/lib/utils/profit";
 import { Banner } from "@/components/ui/Banner";
 import { DataTable, type DataTableColumn } from "@/components/ui/DataTable";
+import { DateRangePresets, rangeForPreset, type RangePreset } from "@/components/ui/DateRangePresets";
 
 interface CampaignRow {
   campaign_id: string;
@@ -49,15 +49,21 @@ export default function CampaignQualityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mobileSort, setMobileSort] = useState(MOBILE_SORT_OPTIONS[0]);
+  const [range, setRange] = useState<{ preset: RangePreset; from: string; to: string }>(() => ({
+    preset: "bulan-ini",
+    ...rangeForPreset("bulan-ini"),
+  }));
 
   useEffect(() => {
-    const from = `${todayJakarta().slice(0, 7)}-01`;
-    const to = todayJakarta();
-    apiFetch<CampaignRow[]>(`/api/dashboard/campaigns?from=${from}&to=${to}&attribution=cohort`)
+    setLoading(true);
+    setError(null);
+    apiFetch<CampaignRow[]>(
+      `/api/dashboard/campaigns?from=${range.from}&to=${range.to}&attribution=cohort`,
+    )
       .then(setRows)
       .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [range.from, range.to]);
 
   const columns: DataTableColumn<CampaignRow>[] = [
     { key: "campaign_name", header: "Campaign", accessor: (r) => r.campaign_name },
@@ -198,6 +204,13 @@ export default function CampaignQualityPage() {
           </select>
         </label>
       </div>
+      <DateRangePresets
+        preset={range.preset}
+        from={range.from}
+        to={range.to}
+        onChange={setRange}
+      />
+
       {error && <Banner variant="danger">{error}</Banner>}
       {loading && <p className="text-sm text-ink-400">Memuat...</p>}
 
