@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { LogoutButton } from "@/components/LogoutButton";
 
 /**
  * CS layout — responsive.
@@ -71,8 +72,9 @@ export default function CsLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 pb-5 pt-3">
-          <div className="text-[11px] text-[#5487A0]">Labbaika Group · v1.1</div>
+        <div className="px-3 pb-5 pt-3">
+          <LogoutButton className="mb-2 w-full rounded-lg px-3 py-2 text-left text-[13px] text-[#A6CBD8] transition-colors hover:bg-white/5" />
+          <div className="px-3 text-[11px] text-[#5487A0]">Labbaika Group · v1.1</div>
         </div>
       </nav>
 
