@@ -49,6 +49,7 @@ export default function CampaignQualityPage() {
   const [rows, setRows] = useState<CampaignRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [mobileSort, setMobileSort] = useState(MOBILE_SORT_OPTIONS[0]);
   const [range, setRange] = useState<{ preset: RangePreset; from: string; to: string }>(() => ({
     preset: "bulan-ini",
@@ -65,6 +66,21 @@ export default function CampaignQualityPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat"))
       .finally(() => setLoading(false));
   }, [range.from, range.to]);
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      await apiFetch(`/api/ads/meta-sync?from=${range.from}&to=${range.to}`);
+      const data = await apiFetch<CampaignRow[]>(
+        `/api/dashboard/campaigns?from=${range.from}&to=${range.to}&attribution=cohort`,
+      );
+      setRows(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sync gagal");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const columns: DataTableColumn<CampaignRow>[] = [
     { key: "campaign_name", header: "Campaign", accessor: (r) => r.campaign_name },
@@ -178,6 +194,14 @@ export default function CampaignQualityPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-xl font-bold text-ink-900">Campaign Quality</h1>
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncing}
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-card px-3 text-xs font-medium text-ink-600 hover:bg-paper disabled:opacity-50"
+        >
+          {syncing ? "Syncing..." : "↻ Refresh"}
+        </button>
         {/* "Urut:" mobile -- DataTable tidak mengekspos sort sebagai state
             terkendali (§4 work order: API-nya milik Track A, dibekukan).
             Dipilih pendekatan yang tidak mengubah DataTable sama sekali:
