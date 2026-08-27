@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatDateID, monthRange, todayJakarta } from "@/lib/utils/date";
 import { apiFetch } from "@/lib/api/client";
 import { Banner } from "@/components/ui/Banner";
@@ -165,6 +166,24 @@ export default function ExportCenterPage() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Laporan analisa gabungan — dibuka di tab baru, disimpan sebagai PDF
+          lewat dialog cetak (tanpa dependency PDF di server). */}
+      <div className="rounded-[10px] border border-line bg-card p-4">
+        <h2 className="font-display font-semibold text-ink-900">Analisa Detail (PDF)</h2>
+        <p className="mt-1 text-xs text-ink-400">
+          Laporan gabungan: ringkasan eksekutif, corong lead, biaya per lead (CPL real / konsultasi /
+          potensial) dan CPP, kualitas lead per campaign, serta alasan lead belum closing. Buka lalu
+          simpan sebagai PDF.
+        </p>
+        <Link
+          href={`/owner/export/analisa?from=${from}&to=${to}`}
+          target="_blank"
+          className="mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass"
+        >
+          Buka laporan analisa
+        </Link>
       </div>
     </div>
   );
