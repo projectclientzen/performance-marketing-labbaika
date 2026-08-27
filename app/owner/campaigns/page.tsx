@@ -13,6 +13,7 @@ interface CampaignRow {
   campaign_id: string;
   campaign_name: string;
   spend: number;
+  meta_leads: number;
   total_lead: number;
   cpl_meta: number | null;
   reached_consultation: number;
@@ -77,11 +78,11 @@ export default function CampaignQualityPage() {
       cardLabel: "Spend",
     },
     {
-      key: "total_lead",
+      key: "meta_leads",
       header: "Lead",
       align: "right",
       sortable: true,
-      accessor: (r) => r.total_lead,
+      accessor: (r) => r.meta_leads,
       cardLabel: "Lead",
     },
     {
