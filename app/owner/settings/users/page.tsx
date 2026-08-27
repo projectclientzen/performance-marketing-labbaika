@@ -137,6 +137,7 @@ export default function UserManagementPage() {
         >
           <option value="cs">CS</option>
           <option value="advertiser">Advertiser</option>
+          <option value="hrd">HRD</option>
           <option value="owner">Owner</option>
         </select>
       ),
@@ -274,6 +275,7 @@ export default function UserManagementPage() {
           >
             <option value="cs">CS</option>
             <option value="advertiser">Advertiser</option>
+            <option value="hrd">HRD</option>
             <option value="owner">Owner</option>
           </select>
           <button

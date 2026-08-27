@@ -77,7 +77,7 @@ const postSchema = z.object({
     message: "Nomor WhatsApp Indonesia tidak valid",
   }),
   email: z.string().email("Email tidak valid"),
-  role: z.enum(["owner", "advertiser", "cs"]).default("cs"),
+  role: z.enum(["owner", "advertiser", "hrd", "cs"]).default("cs"),
   password: z
     .string()
     .min(8, "Password minimal 8 karakter"),
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
 }
 
 const patchSchema = z.object({
-  role: z.enum(["owner", "advertiser", "cs"]).optional(),
+  role: z.enum(["owner", "advertiser", "hrd", "cs"]).optional(),
   is_active: z.boolean().optional(),
 });
 

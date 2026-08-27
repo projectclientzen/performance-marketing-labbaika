@@ -12,11 +12,13 @@
  * yang terjadi waktu pengecekan role cuma hidup di route).
  */
 
-export type AppRole = 'owner' | 'advertiser' | 'cs';
+export type AppRole = 'owner' | 'advertiser' | 'hrd' | 'cs';
 
-const OWNER_LEVEL: readonly string[] = ['owner', 'advertiser'];
+// HRD setara owner/advertiser (migrasi 030) sampai ada UI/UX khususnya.
+// Harus selalu sepakat dengan current_has_owner_access() di DB.
+const OWNER_LEVEL: readonly string[] = ['owner', 'advertiser', 'hrd'];
 
-/** True untuk owner dan advertiser; false untuk cs, peran tak dikenal, dan undefined. */
+/** True untuk owner, advertiser, dan hrd; false untuk cs, peran tak dikenal, dan undefined. */
 export function hasOwnerAccess(role: string | null | undefined): boolean {
   return role != null && OWNER_LEVEL.includes(role);
 }
