@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRefetchOnFocus } from "@/lib/hooks/useRefetchOnFocus";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, ApiError } from "@/lib/api/client";
@@ -123,12 +124,18 @@ export default function ClosingFormPage() {
       setSources(d);
       if (d.length > 0) setForm((f) => ({ ...f, source_id: d[0].id }));
     });
-    apiFetch<Program[]>("/api/programs").then((d) => {
-      setPrograms(d);
-      if (d.length > 0) setForm((f) => ({ ...f, program_id: d[0].id }));
-    });
+    loadPrograms();
     apiFetch<Region[]>("/api/master/regions").then(setRegions);
   }, []);
+
+  // Program baru dari CS/owner lain muncul di dropdown saat tab difokuskan.
+  function loadPrograms() {
+    apiFetch<Program[]>("/api/programs").then((d) => {
+      setPrograms(d);
+      setForm((f) => (f.program_id || d.length === 0 ? f : { ...f, program_id: d[0].id }));
+    });
+  }
+  useRefetchOnFocus(loadPrograms);
 
   useEffect(() => {
     if (!form.program_id) return;

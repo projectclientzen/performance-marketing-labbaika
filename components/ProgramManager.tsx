@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRefetchOnFocus } from "@/lib/hooks/useRefetchOnFocus";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { formatDateID, todayJakarta } from "@/lib/utils/date";
@@ -59,6 +60,9 @@ export function ProgramManager() {
     apiFetch<Program[]>("/api/programs").then(setPrograms);
   }
   useEffect(loadPrograms, []);
+  // Segarkan daftar program saat tab difokuskan — program yang ditambah
+  // pengguna/role lain langsung muncul tanpa reload manual.
+  useRefetchOnFocus(loadPrograms);
 
   function loadDetail(programId: string) {
     setSelected(programId);
