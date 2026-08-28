@@ -84,9 +84,52 @@ const FIELD_STEP: Record<string, number> = {
 const inputClass = "mt-1.5 h-[46px] w-full rounded-lg border border-line px-3 text-[15px]";
 const labelClass = "text-[13px] text-ink-600";
 
+// Draft closing disimpan per-tab (sessionStorage) supaya batal tidak sengaja
+// atau refresh tidak memaksa CS mengetik ulang dari awal. Berisi data jamaah,
+// jadi sengaja sessionStorage (hilang saat tab ditutup), bukan localStorage,
+// dan dihapus begitu closing berhasil disimpan.
+const DRAFT_KEY = "closing-draft-v1";
+
+const DEFAULT_FORM = {
+  first_name: "",
+  last_name: "",
+  whatsapp: "",
+  email: "",
+  pdp_consent: false,
+  source_id: "",
+  lead_date: todayJakarta(),
+  previous_stage: "offering" as "cold" | "consultation" | "offering",
+  program_id: "",
+  departure_id: "",
+  room_type: "quad",
+  pax: 1,
+  price_at_transaction: 0,
+  total_value: 0,
+  price_note: "",
+  payment_status: "dp" as "dp" | "partial" | "lunas" | "refunded",
+  paid_amount: 0,
+  province_id: "",
+  city_id: "",
+  closing_date: todayJakarta(),
+};
+
+function loadDraft(): typeof DEFAULT_FORM {
+  if (typeof window === "undefined") return DEFAULT_FORM;
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (raw) return { ...DEFAULT_FORM, ...JSON.parse(raw) };
+  } catch {
+    // storage diblokir / JSON rusak — mulai dari kosong.
+  }
+  return DEFAULT_FORM;
+}
+
 export default function ClosingFormPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  // Langkah terjauh yang pernah dicapai — menentukan step mana yang boleh
+  // diklik untuk melompat mundur mengoreksi (bukan skip maju tanpa isi).
+  const [maxStep, setMaxStep] = useState(0);
   const [sources, setSources] = useState<LeadSource[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [departures, setDepartures] = useState<Departure[]>([]);
@@ -100,33 +143,21 @@ export default function ClosingFormPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [conflict, setConflict] = useState<DuplicateConflict | null>(null);
 
-  const [form, setForm] = useState({
-    first_name: "",
-    last_name: "",
-    whatsapp: "",
-    email: "",
-    pdp_consent: false,
-    source_id: "",
-    lead_date: todayJakarta(),
-    previous_stage: "offering" as "cold" | "consultation" | "offering",
-    program_id: "",
-    departure_id: "",
-    room_type: "quad",
-    pax: 1,
-    price_at_transaction: 0,
-    total_value: 0,
-    price_note: "",
-    payment_status: "dp" as "dp" | "partial" | "lunas" | "refunded",
-    paid_amount: 0,
-    province_id: "",
-    city_id: "",
-    closing_date: todayJakarta(),
-  });
+  const [form, setForm] = useState(loadDraft);
+
+  // Simpan draft tiap perubahan supaya tidak hilang saat batal/refresh.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+    } catch {
+      // abaikan kalau storage tidak tersedia.
+    }
+  }, [form]);
 
   useEffect(() => {
     apiFetch<LeadSource[]>("/api/master/sources").then((d) => {
       setSources(d);
-      if (d.length > 0) setForm((f) => ({ ...f, source_id: d[0].id }));
+      if (d.length > 0) setForm((f) => (f.source_id ? f : { ...f, source_id: d[0].id }));
     });
     loadPrograms();
     apiFetch<Region[]>("/api/master/regions").then(setRegions);
@@ -210,6 +241,7 @@ export default function ClosingFormPage() {
     setFieldErrors({});
     setError(null);
     setStep(next);
+    setMaxStep((m) => Math.max(m, next));
   }
 
   async function submit(force = false) {
@@ -227,7 +259,14 @@ export default function ClosingFormPage() {
           force,
         }),
       });
-      if (data) router.push("/cs");
+      if (data) {
+        try {
+          sessionStorage.removeItem(DRAFT_KEY);
+        } catch {
+          // abaikan.
+        }
+        router.push("/cs");
+      }
     } catch (e) {
       // POST /api/closings returns code DUPLICATE_CONFLICT + fields
       // {cs_name, closing_date, program_name} on 409 (see ApiError in
@@ -257,12 +296,14 @@ export default function ClosingFormPage() {
           {STEPS.map((label, i) => {
             const done = i < step;
             const current = i === step;
+            const clickable = i <= maxStep && i !== step;
             return (
               <li
                 key={label}
+                onClick={() => clickable && goStep(i)}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
                   current ? "bg-brass-lo font-semibold text-ink-900" : "text-ink-600"
-                }`}
+                } ${clickable ? "cursor-pointer hover:bg-paper" : ""}`}
               >
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -300,7 +341,14 @@ export default function ClosingFormPage() {
         </div>
         <div className="mt-3.5 flex gap-2">
           {STEPS.map((_, i) => (
-            <div key={i} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-brass" : "bg-line"}`} />
+            <button
+              key={i}
+              type="button"
+              aria-label={`Ke langkah ${i + 1}`}
+              onClick={() => i <= maxStep && goStep(i)}
+              disabled={i > maxStep}
+              className={`h-1 flex-1 rounded-full ${i <= step ? "bg-brass" : "bg-line"}`}
+            />
           ))}
         </div>
         <p className="mt-2 font-mono text-xs text-ink-400">
