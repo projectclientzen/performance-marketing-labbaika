@@ -17,6 +17,7 @@ interface Departure {
   id: string;
   program_id: string;
   departure_date: string;
+  return_date: string | null;
 }
 interface PriceRow {
   id: string;
@@ -50,7 +51,7 @@ export function ProgramManager() {
     triple: "",
     double: "",
   });
-  const [newDeparture, setNewDeparture] = useState({ departure_date: "" });
+  const [newDeparture, setNewDeparture] = useState({ departure_date: "", return_date: "" });
   // price sengaja string kosong, bukan 0: input number yang sudah berisi 0
   // menyembunyikan placeholder "Harga", jadi kolomnya terbaca sudah terisi —
   // lalu Tambah ditolak `price harus lebih dari 0` tanpa petunjuk kolom mana.
@@ -153,8 +154,15 @@ export function ProgramManager() {
     if (!selected) return;
     setError(null);
     try {
-      await apiFetch(`/api/programs/${selected}/departures`, { method: "POST", body: JSON.stringify(newDeparture) });
-      setNewDeparture({ departure_date: "" });
+      await apiFetch(`/api/programs/${selected}/departures`, {
+        method: "POST",
+        // return_date opsional di skema; kirim hanya kalau diisi.
+        body: JSON.stringify({
+          departure_date: newDeparture.departure_date,
+          ...(newDeparture.return_date ? { return_date: newDeparture.return_date } : {}),
+        }),
+      });
+      setNewDeparture({ departure_date: "", return_date: "" });
       loadDetail(selected);
     } catch (e) {
       setError(pesanError(e, "Gagal menambah keberangkatan"));
@@ -275,7 +283,10 @@ export function ProgramManager() {
             <ul className="mb-3 space-y-1 text-sm">
               {departures.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-ink-900">{formatDateID(d.departure_date)}</span>
+                  <span className="font-mono text-ink-900">
+                    {formatDateID(d.departure_date)}
+                    {d.return_date ? ` – ${formatDateID(d.return_date)}` : ""}
+                  </span>
                   <button
                     type="button"
                     onClick={() => hapus(`/api/programs/${selected}/departures/${d.id}`, "Gagal menghapus keberangkatan")}
@@ -290,9 +301,32 @@ export function ProgramManager() {
                 <li className="text-ink-400">Belum ada keberangkatan.</li>
               )}
             </ul>
-            <div className="flex gap-2">
-              <input type="date" value={newDeparture.departure_date} onChange={(e) => setNewDeparture({ departure_date: e.target.value })} className="h-9 rounded-lg border border-line px-2 text-sm" />
-              <button type="button" onClick={addDeparture} className="h-9 rounded-lg border border-line px-3 text-sm font-medium">
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-[11px] text-ink-400">
+                Berangkat
+                <input
+                  type="date"
+                  value={newDeparture.departure_date}
+                  onChange={(e) => setNewDeparture((s) => ({ ...s, departure_date: e.target.value }))}
+                  className="h-9 rounded-lg border border-line px-2 text-sm text-ink-900"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-[11px] text-ink-400">
+                Pulang
+                <input
+                  type="date"
+                  value={newDeparture.return_date}
+                  min={newDeparture.departure_date || undefined}
+                  onChange={(e) => setNewDeparture((s) => ({ ...s, return_date: e.target.value }))}
+                  className="h-9 rounded-lg border border-line px-2 text-sm text-ink-900"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={addDeparture}
+                disabled={!newDeparture.departure_date}
+                className="h-9 rounded-lg border border-line px-3 text-sm font-medium disabled:opacity-50"
+              >
                 Tambah
               </button>
             </div>

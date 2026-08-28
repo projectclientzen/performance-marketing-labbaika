@@ -5,7 +5,7 @@ import { useRefetchOnFocus } from "@/lib/hooks/useRefetchOnFocus";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, ApiError } from "@/lib/api/client";
-import { todayJakarta } from "@/lib/utils/date";
+import { formatDateID, todayJakarta } from "@/lib/utils/date";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { Banner } from "@/components/ui/Banner";
 
@@ -20,6 +20,7 @@ interface Program {
 interface Departure {
   id: string;
   departure_date: string;
+  return_date: string | null;
 }
 interface PriceRow {
   price: number;
@@ -459,7 +460,8 @@ export default function ClosingFormPage() {
                 ) : (
                   departures.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.departure_date}
+                      {formatDateID(d.departure_date)}
+                      {d.return_date ? ` – ${formatDateID(d.return_date)}` : ""}
                     </option>
                   ))
                 )}
