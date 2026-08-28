@@ -92,6 +92,9 @@ export default function ClosingFormPage() {
   const [departures, setDepartures] = useState<Departure[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [priceOverride, setPriceOverride] = useState(false);
+  // true kalau harga otomatis tidak ketemu untuk kombinasi ini — dipakai untuk
+  // menjelaskan kenapa form terpaksa pindah ke input manual (bukan diam-diam).
+  const [priceAutoFailed, setPriceAutoFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -175,13 +178,17 @@ export default function ClosingFormPage() {
     });
     apiFetch<PriceRow>(`/api/price-lookup?${params}`)
       .then((p) => {
+        setPriceAutoFailed(false);
         setForm((f) => ({
           ...f,
           price_at_transaction: p.price,
           total_value: p.price * f.pax,
         }));
       })
-      .catch(() => setPriceOverride(true));
+      .catch(() => {
+        setPriceAutoFailed(true);
+        setPriceOverride(true);
+      });
   }, [form.program_id, form.departure_id, form.room_type, form.closing_date, form.pax, priceOverride]);
 
   const provinces = regions.filter((r) => r.level === "province");
@@ -505,9 +512,24 @@ export default function ClosingFormPage() {
             </div>
 
             <label className="flex items-center gap-2 text-sm text-ink-600">
-              <input type="checkbox" checked={priceOverride} onChange={(e) => setPriceOverride(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={priceOverride}
+                onChange={(e) => {
+                  setPriceOverride(e.target.checked);
+                  if (!e.target.checked) setPriceAutoFailed(false);
+                }}
+              />
               Harga khusus (isi manual)
             </label>
+
+            {priceAutoFailed && (
+              <p className="rounded-lg bg-warn/10 px-3 py-2 text-[13px] text-warn-ink">
+                Harga otomatis tidak ditemukan untuk kombinasi program, keberangkatan,
+                tipe kamar, dan tanggal ini. Isi harga manual, atau set harganya dulu di
+                Program &amp; Harga.
+              </p>
+            )}
 
             {priceOverride ? (
               <>
