@@ -141,7 +141,11 @@ export default function ClosingFormPage() {
     if (!form.program_id) return;
     apiFetch<Departure[]>(`/api/programs/${form.program_id}/departures`).then((d) => {
       setDepartures(d);
-      if (d.length > 0) setForm((f) => ({ ...f, departure_id: d[0].id }));
+      // Reset ke keberangkatan pertama program yang baru — atau "" kalau
+      // program itu belum punya keberangkatan. Tanpa ini, memilih program
+      // tanpa keberangkatan tetap menyimpan departure_id program sebelumnya
+      // (keberangkatan salah lolos ke langkah berikutnya).
+      setForm((f) => ({ ...f, departure_id: d.length > 0 ? d[0].id : "" }));
     });
   }, [form.program_id]);
 
@@ -433,13 +437,27 @@ export default function ClosingFormPage() {
                 value={form.departure_id}
                 onChange={(e) => setForm((f) => ({ ...f, departure_id: e.target.value }))}
                 className={inputClass}
+                disabled={departures.length === 0}
               >
-                {departures.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.departure_date}
-                  </option>
-                ))}
+                {departures.length === 0 ? (
+                  <option value="">Belum ada keberangkatan</option>
+                ) : (
+                  departures.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.departure_date}
+                    </option>
+                  ))
+                )}
               </select>
+              {form.program_id && departures.length === 0 && (
+                <p className="mt-1.5 text-[13px] text-warn-ink">
+                  Program ini belum punya tanggal keberangkatan. Tambahkan dulu di{" "}
+                  <Link href="/owner/programs" className="font-medium text-blue underline">
+                    Program &amp; Harga
+                  </Link>
+                  , lalu buka lagi form ini.
+                </p>
+              )}
             </div>
             <div>
               <label className={labelClass}>Tipe kamar</label>
