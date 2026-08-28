@@ -256,7 +256,22 @@ export function ProgramManager() {
       {selected && (
         <div className="space-y-4">
           <section className="rounded-[10px] border border-line bg-card p-4">
-            <h2 className="mb-2 text-sm font-semibold text-ink-600">Keberangkatan</h2>
+            <h2 className="mb-1 text-sm font-semibold text-ink-600">
+              Keberangkatan <span className="text-danger">*</span>
+            </h2>
+            {/* Program wajib punya minimal satu keberangkatan: form closing
+                mengunci tombol Lanjut sampai CS memilih tanggal keberangkatan,
+                jadi program tanpa keberangkatan tidak bisa dipakai menutup. */}
+            <p className="mb-2 text-[11px] text-ink-400">
+              Wajib diisi — tanggal tiap keberangkatan program. Program tanpa
+              keberangkatan tidak bisa dipakai di form closing.
+            </p>
+            {departures.length === 0 && (
+              <p className="mb-2 rounded-lg bg-warn/10 px-3 py-2 text-[13px] text-warn-ink">
+                Belum ada keberangkatan. Tambah minimal satu tanggal di bawah agar
+                program ini bisa dipakai mencatat closing.
+              </p>
+            )}
             <ul className="mb-3 space-y-1 text-sm">
               {departures.map((d) => (
                 <li key={d.id} className="flex items-center justify-between gap-2">

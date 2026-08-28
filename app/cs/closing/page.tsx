@@ -135,18 +135,33 @@ export default function ClosingFormPage() {
       setForm((f) => (f.program_id || d.length === 0 ? f : { ...f, program_id: d[0].id }));
     });
   }
-  useRefetchOnFocus(loadPrograms);
+  // Muat keberangkatan sebuah program. `keepSelection` dipakai saat menyegarkan
+  // on-focus: pilihan CS dipertahankan kalau masih valid, hanya jatuh ke
+  // keberangkatan pertama (atau "") kalau tidak ada / tidak lagi ada.
+  function loadDepartures(programId: string, keepSelection = false) {
+    apiFetch<Departure[]>(`/api/programs/${programId}/departures`).then((d) => {
+      setDepartures(d);
+      setForm((f) => {
+        const stillValid = keepSelection && d.some((x) => x.id === f.departure_id);
+        return { ...f, departure_id: stillValid ? f.departure_id : d.length > 0 ? d[0].id : "" };
+      });
+    });
+  }
+
+  // Keberangkatan yang baru ditambah di Program & Harga (tab lain) ikut muncul
+  // saat kembali ke form ini — bukan cuma daftar programnya. Tanpa ini, CS yang
+  // menambah keberangkatan lalu kembali tetap melihat dropdown kosong.
+  useRefetchOnFocus(() => {
+    loadPrograms();
+    if (form.program_id) loadDepartures(form.program_id, true);
+  });
 
   useEffect(() => {
     if (!form.program_id) return;
-    apiFetch<Departure[]>(`/api/programs/${form.program_id}/departures`).then((d) => {
-      setDepartures(d);
-      // Reset ke keberangkatan pertama program yang baru — atau "" kalau
-      // program itu belum punya keberangkatan. Tanpa ini, memilih program
-      // tanpa keberangkatan tetap menyimpan departure_id program sebelumnya
-      // (keberangkatan salah lolos ke langkah berikutnya).
-      setForm((f) => ({ ...f, departure_id: d.length > 0 ? d[0].id : "" }));
-    });
+    // Ganti program → reset ke keberangkatan pertama program baru (atau ""
+    // kalau belum ada), supaya departure_id program sebelumnya tidak lolos.
+    loadDepartures(form.program_id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.program_id]);
 
   useEffect(() => {
