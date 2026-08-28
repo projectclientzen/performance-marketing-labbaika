@@ -56,6 +56,9 @@ export function ProgramManager() {
   // menyembunyikan placeholder "Harga", jadi kolomnya terbaca sudah terisi —
   // lalu Tambah ditolak `price harus lebih dari 0` tanpa petunjuk kolom mana.
   const [newPrice, setNewPrice] = useState({ room_type: "quad", price: "", effective_date: "" });
+  // Edit nama program terpublish (#3 iterasi CS). Inline, bukan modal.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
 
   function loadPrograms() {
     apiFetch<Program[]>("/api/programs").then(setPrograms);
@@ -108,6 +111,20 @@ export function ProgramManager() {
       loadPrograms();
     } catch (e) {
       setError(pesanError(e, "Gagal menghapus program"));
+    }
+  }
+
+  async function saveRename(id: string) {
+    const nama = editName.trim();
+    if (!nama) return;
+    setError(null);
+    try {
+      await apiFetch(`/api/programs/${id}`, { method: "PATCH", body: JSON.stringify({ name: nama }) });
+      setEditingId(null);
+      setEditName("");
+      loadPrograms();
+    } catch (e) {
+      setError(pesanError(e, "Gagal mengubah nama program"));
     }
   }
 
@@ -193,33 +210,6 @@ export function ProgramManager() {
           </span>
         </div>
         {error && <Banner variant="danger">{error}</Banner>}
-        <div className="divide-y divide-line rounded-[10px] border border-line bg-card">
-          {programs.map((p) => (
-            <div
-              key={p.id}
-              className={`flex items-center gap-2 pr-2 ${selected === p.id ? "bg-brass-lo" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => loadDetail(p.id)}
-                className="block min-w-0 flex-1 p-3 text-left text-sm"
-              >
-                <p className="truncate font-medium text-ink-900">{p.name}</p>
-                <p className="truncate text-xs text-ink-400">{p.destination} · {p.duration_days} hari</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => hapusProgram(p.id)}
-                aria-label={`Hapus program ${p.name}`}
-                title="Hapus program"
-                className="shrink-0 rounded-lg px-2 py-1 text-sm text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-
         <div className="space-y-2 rounded-[10px] border border-dashed border-line p-3">
           <p className="text-xs font-medium text-ink-600">Tambah program</p>
           <input placeholder="Nama" value={newProgram.name} onChange={(e) => setNewProgram((s) => ({ ...s, name: e.target.value }))} className="h-9 w-full rounded-lg border border-line px-2 text-sm" />
@@ -259,6 +249,66 @@ export function ProgramManager() {
             Tambah
           </button>
         </div>
+
+        <div className="max-h-[45vh] divide-y divide-line overflow-y-auto rounded-[10px] border border-line bg-card">
+          {programs.map((p) => (
+            <div
+              key={p.id}
+              className={`flex items-center gap-2 pr-2 ${selected === p.id ? "bg-brass-lo" : ""}`}
+            >
+              {editingId === p.id ? (
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 p-2">
+                  <input
+                    autoFocus
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveRename(p.id);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-line px-2 text-sm"
+                  />
+                  <button type="button" onClick={() => saveRename(p.id)} className="shrink-0 rounded-lg bg-brass px-2 py-1 text-xs font-semibold text-on-brass">
+                    Simpan
+                  </button>
+                  <button type="button" onClick={() => setEditingId(null)} className="shrink-0 rounded-lg px-2 py-1 text-xs text-ink-400">
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => loadDetail(p.id)}
+                    className="block min-w-0 flex-1 p-3 text-left text-sm"
+                  >
+                    <p className="truncate font-medium text-ink-900">{p.name}</p>
+                    <p className="truncate text-xs text-ink-400">{p.destination} · {p.duration_days} hari</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(p.id); setEditName(p.name); }}
+                    aria-label={`Ubah nama program ${p.name}`}
+                    title="Ubah nama"
+                    className="shrink-0 rounded-lg px-2 py-1 text-sm text-ink-400 transition-colors duration-200 hover:bg-brass/10 hover:text-brass"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => hapusProgram(p.id)}
+                    aria-label={`Hapus program ${p.name}`}
+                    title="Hapus program"
+                    className="shrink-0 rounded-lg px-2 py-1 text-sm text-ink-400 transition-colors duration-200 hover:bg-danger/10 hover:text-danger"
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
       </div>
 
       {selected && (

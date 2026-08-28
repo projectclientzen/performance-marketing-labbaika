@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 
@@ -79,4 +80,60 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   }
 
   return NextResponse.json(ok({ id }));
+}
+
+
+const patchSchema = z.object({
+  name: z.string().min(1, "Nama program wajib").optional(),
+  destination: z.string().min(1, "Destinasi wajib").optional(),
+  duration_days: z.number().int().positive("Durasi harus lebih dari 0").optional(),
+});
+
+/**
+ * Ubah data program yang sudah ada — sebelumnya hanya harga & keberangkatan
+ * yang bisa diubah, nama/destinasi/durasi tidak. RLS (migrasi 029) menjaga
+ * batas brand; semua peran dalam brand boleh mengelola program.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { user, appUser, supabase } = await getAuthedAppUser();
+  if (!user) {
+    return NextResponse.json(fail("UNAUTHORIZED"), { status: httpStatus("UNAUTHORIZED") });
+  }
+  if (!appUser) {
+    return NextResponse.json(fail("FORBIDDEN"), { status: httpStatus("FORBIDDEN") });
+  }
+
+  const body = await request.json().catch(() => null);
+  const parsed = patchSchema.safeParse(body);
+  if (!parsed.success) {
+    const fields: Record<string, string> = {};
+    for (const issue of parsed.error.issues) fields[issue.path.join(".") || "body"] = issue.message;
+    return NextResponse.json(fail("VALIDATION_ERROR", undefined, fields), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json(fail("VALIDATION_ERROR", "Tidak ada perubahan"), {
+      status: httpStatus("VALIDATION_ERROR"),
+    });
+  }
+
+  const { data, error } = await supabase
+    .from("programs")
+    .update(parsed.data)
+    .eq("id", id)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.error("[api/programs/:id] PATCH", error);
+    return NextResponse.json(fail("INTERNAL_ERROR"), { status: httpStatus("INTERNAL_ERROR") });
+  }
+  if (!data) {
+    return NextResponse.json(fail("NOT_FOUND", "Program tidak ditemukan"), {
+      status: httpStatus("NOT_FOUND"),
+    });
+  }
+  return NextResponse.json(ok(data));
 }
