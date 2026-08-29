@@ -85,6 +85,13 @@ function FunnelRow({
   );
 }
 
+interface ProgramClosing {
+  program_id: string;
+  program_name: string;
+  closing: number;
+  omset: number;
+}
+
 interface SourceSplit {
   paid: number;
   other: number;
@@ -155,6 +162,8 @@ export default function OwnerOverviewPage() {
   const [attribution, setAttribution] = useState<"cash" | "cohort">("cash");
   const [data, setData] = useState<Overview | null>(null);
   const [split, setSplit] = useState<SourceSplit | null>(null);
+  const [byProgram, setByProgram] = useState<ProgramClosing[]>([]);
+  const [programFilter, setProgramFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,6 +180,9 @@ export default function OwnerOverviewPage() {
     apiFetch<SourceSplit>(`/api/dashboard/closing-source-split?from=${from}&to=${to}`)
       .then(setSplit)
       .catch(() => setSplit(null));
+    apiFetch<ProgramClosing[]>(`/api/dashboard/closings-by-program?from=${from}&to=${to}`)
+      .then(setByProgram)
+      .catch(() => setByProgram([]));
   }, [from, to]);
 
   const modeLabel = attribution === "cash" ? "Cash basis" : "Cohort";
@@ -483,6 +495,60 @@ export default function OwnerOverviewPage() {
         ) : (
           <p className="text-sm text-ink-400">Memuat...</p>
         )}
+      </section>
+
+      {/* Closing per program — program mana yang paling banyak closing, plus
+          filter untuk menyorot satu program. Cacah closing murni, terpisah
+          dari metrik ad-funnel. */}
+      <section className="rounded-card border border-line bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-ink-600">Closing per program</h2>
+          <select
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+            className="h-9 rounded-lg border border-line px-2 text-sm text-ink-900"
+          >
+            <option value="all">Semua program</option>
+            {byProgram.map((p) => (
+              <option key={p.program_id} value={p.program_id}>
+                {p.program_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {(() => {
+          const shown =
+            programFilter === "all"
+              ? byProgram
+              : byProgram.filter((p) => p.program_id === programFilter);
+          const maxClosing = Math.max(1, ...byProgram.map((p) => p.closing));
+          if (byProgram.length === 0) {
+            return <p className="text-sm text-ink-400">Belum ada closing untuk periode ini.</p>;
+          }
+          return (
+            <div className="space-y-3">
+              {shown.map((p, i) => (
+                <div key={p.program_id}>
+                  <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate text-ink-900">
+                      {programFilter === "all" && i === 0 ? "🏆 " : ""}
+                      {p.program_name}
+                    </span>
+                    <span className="shrink-0 font-mono text-ink-600">
+                      {p.closing} closing · {formatRupiah(p.omset)}
+                    </span>
+                  </div>
+                  <div className="h-[24px] w-full overflow-hidden rounded-md bg-paper">
+                    <div
+                      className="h-full rounded-md bg-stage-closing"
+                      style={{ width: `${(p.closing / maxClosing) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </section>
     </div>
   );
