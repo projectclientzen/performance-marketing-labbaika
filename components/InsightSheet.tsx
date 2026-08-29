@@ -14,6 +14,9 @@ export interface InsightSheetProps {
   onClose: () => void;
   leadReportId: string;
   stageCounts: { consultation: number; offering: number };
+  /** Posisi dalam antrean multi-source (mis. 2 dari 3), opsional. */
+  step?: number;
+  total?: number;
 }
 
 type Stage = "consultation" | "offering";
@@ -28,6 +31,8 @@ export function InsightSheet({
   onClose,
   leadReportId,
   stageCounts,
+  step,
+  total,
 }: InsightSheetProps) {
   const [categories, setCategories] = useState<InsightCategory[]>([]);
   const [tab, setTab] = useState<Stage>("offering");
@@ -45,8 +50,19 @@ export function InsightSheet({
       );
   }, [open]);
 
-  const filled = Object.values(counts[tab]).reduce((s, n) => s + n, 0);
+  const filledStage = (stage: Stage) => Object.values(counts[stage]).reduce((a, b) => a + b, 0);
+  const filled = filledStage(tab);
   const stageTotal = stageCounts[tab];
+  // Wajib penuh: tiap lead yang tidak lanjut di sebuah stage harus punya
+  // alasan. Selesai kalau jumlah alasan == jumlah lead di stage itu. Lebih
+  // besar (over-attribusi) juga belum boleh simpan.
+  const completeConsult = filledStage("consultation") === stageCounts.consultation;
+  const completeOffering = filledStage("offering") === stageCounts.offering;
+  const allComplete = completeConsult && completeOffering;
+  const tabComplete: Record<Stage, boolean> = {
+    consultation: completeConsult,
+    offering: completeOffering,
+  };
 
   function setCount(categoryId: string, value: number) {
     setCounts((prev) => ({
@@ -86,20 +102,22 @@ export function InsightSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <button
-        type="button"
-        aria-label="Tutup"
-        onClick={onClose}
-        className="absolute inset-0 bg-scrim"
-      />
+      {/* Backdrop TIDAK menutup sheet: pengisian alasan wajib (keputusan
+          owner). Satu-satunya jalan keluar adalah menyelesaikan semua alasan
+          lalu "Simpan insight". */}
+      <div className="absolute inset-0 bg-scrim" />
       <div className="relative mx-4 flex max-h-[80vh] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-paper shadow-xl">
         {/* header */}
         <div className="shrink-0 px-5 pt-5 pb-3">
           <h2 className="font-display text-lg font-semibold text-ink-900">
             Tambah insight
+            {total && total > 1 ? (
+              <span className="ml-2 text-sm font-normal text-ink-400">sumber {step} dari {total}</span>
+            ) : null}
           </h2>
-          <p className="mt-0.5 text-[13px] text-ink-400">
-            Wajib diisi sebelum tutup
+          <p className="mt-0.5 text-[13px] text-warn-ink">
+            Wajib: beri alasan untuk setiap lead yang tidak lanjut. Isi kedua tab
+            sampai lengkap sebelum bisa disimpan.
           </p>
           {/* tabs */}
           <div className="mt-3 flex gap-1 rounded-full border border-line bg-card p-1">
@@ -115,11 +133,17 @@ export function InsightSheet({
                 }
               >
                 {s === "consultation" ? "Consultation" : "Offering"}
+                {stageCounts[s] > 0 && (
+                  <span className="ml-1.5">
+                    {tabComplete[s] ? "✓" : `${filledStage(s)}/${stageCounts[s]}`}
+                  </span>
+                )}
               </button>
             ))}
           </div>
-          <p className="mt-2 text-[13px] text-ink-600">
-            {filled} dari {stageTotal} lead {tab} sudah diberi insight
+          <p className={`mt-2 text-[13px] ${tabComplete[tab] ? "text-ok" : "text-warn-ink"}`}>
+            {filled} dari {stageTotal} lead {tab} sudah diberi alasan
+            {filled > stageTotal ? " — melebihi jumlah lead, kurangi dulu" : ""}
           </p>
         </div>
         {/* scrollable body */}
@@ -145,10 +169,16 @@ export function InsightSheet({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !allComplete}
             className="h-[46px] flex-1 rounded-lg bg-brass text-[15px] font-semibold text-on-brass disabled:opacity-50"
           >
-            {saving ? "Menyimpan..." : "Simpan insight"}
+            {saving
+              ? "Menyimpan..."
+              : allComplete
+                ? "Simpan insight"
+                : !completeOffering
+                  ? "Lengkapi tab Offering"
+                  : "Lengkapi tab Consultation"}
           </button>
         </div>
       </div>

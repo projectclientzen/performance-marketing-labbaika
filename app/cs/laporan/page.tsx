@@ -70,11 +70,13 @@ function LaporanHarianForm() {
   const [saved, setSaved] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(!!editId);
   const [idempotencyKey, setIdempotencyKey] = useState(() => uuid());
-  const [insightTarget, setInsightTarget] = useState<{
-    id: string;
-    consultation: number;
-    offering: number;
-  } | null>(null);
+  // Antre semua source yang punya lead consultation/offering — tiap satu wajib
+  // diberi alasan (wajib penuh). Bukan cuma source terbesar: kalau tidak, lead
+  // offering source lain lolos tanpa alasan dan data Lead Intel tetap bolong.
+  const [insightQueue, setInsightQueue] = useState<
+    { id: string; consultation: number; offering: number }[]
+  >([]);
+  const [insightTotal, setInsightTotal] = useState(0);
   const [pastReports, setPastReports] = useState<PastReport[]>([]);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -168,13 +170,10 @@ function LaporanHarianForm() {
       });
       setSaved(true);
       setIdempotencyKey(uuid());
-      const primary = savedReports.length > 0
-        ? savedReports.reduce((best, r) =>
-            r.consultation + r.offering > best.consultation + best.offering ? r : best,
-          )
-        : null;
-      if (primary && primary.consultation + primary.offering > 0) {
-        setInsightTarget(primary);
+      const needing = savedReports.filter((r) => r.consultation + r.offering > 0);
+      if (needing.length > 0) {
+        setInsightQueue(needing);
+        setInsightTotal(needing.length);
       } else {
         setTimeout(() => router.push("/cs"), 1200);
       }
@@ -378,15 +377,21 @@ function LaporanHarianForm() {
         </div>
       </div>
 
-      {insightTarget && (
+      {insightQueue.length > 0 && (
         <InsightSheet
+          key={insightQueue[0].id}
           open
+          step={insightTotal - insightQueue.length + 1}
+          total={insightTotal}
           onClose={() => {
-            setInsightTarget(null);
-            router.push("/cs");
+            setInsightQueue((q) => {
+              const rest = q.slice(1);
+              if (rest.length === 0) router.push("/cs");
+              return rest;
+            });
           }}
-          leadReportId={insightTarget.id}
-          stageCounts={{ consultation: insightTarget.consultation, offering: insightTarget.offering }}
+          leadReportId={insightQueue[0].id}
+          stageCounts={{ consultation: insightQueue[0].consultation, offering: insightQueue[0].offering }}
         />
       )}
     </div>
