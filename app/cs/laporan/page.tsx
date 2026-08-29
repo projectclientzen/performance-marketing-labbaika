@@ -149,7 +149,14 @@ function LaporanHarianForm() {
           }),
         });
         setSaved(true);
-        setTimeout(() => router.push("/cs"), 800);
+        // Koreksi juga wajib alasan: kalau laporan ini punya lead consultation/
+        // offering, buka sheet insight (pre-loaded) sebelum keluar.
+        if (editId && block.consultation + block.offering > 0) {
+          setInsightQueue([{ id: editId, consultation: block.consultation, offering: block.offering }]);
+          setInsightTotal(1);
+        } else {
+          setTimeout(() => router.push("/cs"), 800);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Gagal menyimpan koreksi");
       } finally {

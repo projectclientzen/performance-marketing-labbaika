@@ -44,11 +44,26 @@ export function InsightSheet({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open)
-      apiFetch<InsightCategory[]>("/api/master/insight-categories").then(
-        setCategories,
-      );
-  }, [open]);
+    if (!open) return;
+    apiFetch<InsightCategory[]>("/api/master/insight-categories").then(setCategories);
+    // Muat alasan yang sudah ada supaya koreksi laporan tinggal menyesuaikan,
+    // bukan mengetik ulang dari nol.
+    apiFetch<{ stage: Stage; category_id: string; lead_count: number }[]>(
+      `/api/lead-reports/${leadReportId}/insights`,
+    )
+      .then((rows) => {
+        const next: Record<Stage, Record<string, number>> = { consultation: {}, offering: {} };
+        for (const r of rows) {
+          if (r.stage === "consultation" || r.stage === "offering") {
+            next[r.stage][r.category_id] = r.lead_count;
+          }
+        }
+        setCounts(next);
+      })
+      .catch(() => {
+        // belum ada insight — biarkan kosong.
+      });
+  }, [open, leadReportId]);
 
   const filledStage = (stage: Stage) => Object.values(counts[stage]).reduce((a, b) => a + b, 0);
   const filled = filledStage(tab);

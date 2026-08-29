@@ -85,11 +85,76 @@ function FunnelRow({
   );
 }
 
+interface SourceSplit {
+  paid: number;
+  other: number;
+  paid_omset: number;
+  other_omset: number;
+}
+
+/** Donut closing paid vs other. SVG murni, dua segmen stroke pada satu circle. */
+function ClosingSourceDonut({ split }: { split: SourceSplit }) {
+  const total = split.paid + split.other;
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const paidFrac = total > 0 ? split.paid / total : 0;
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  const rows = [
+    { label: "Paid traffic (iklan)", value: split.paid, omset: split.paid_omset, color: "var(--color-stage-closing)" },
+    { label: "Other (organik)", value: split.other, omset: split.other_omset, color: "var(--color-stage-consult)" },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <div className="relative h-[140px] w-[140px] shrink-0">
+        <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
+          <circle cx="70" cy="70" r={r} fill="none" stroke="var(--color-paper)" strokeWidth="16" />
+          {total > 0 && (
+            <>
+              <circle
+                cx="70" cy="70" r={r} fill="none" stroke="var(--color-stage-closing)" strokeWidth="16"
+                strokeDasharray={`${paidFrac * c} ${c}`}
+              />
+              <circle
+                cx="70" cy="70" r={r} fill="none" stroke="var(--color-stage-consult)" strokeWidth="16"
+                strokeDasharray={`${(1 - paidFrac) * c} ${c}`}
+                strokeDashoffset={`${-paidFrac * c}`}
+              />
+            </>
+          )}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono text-2xl font-semibold text-ink-900">{total}</span>
+          <span className="text-[11px] text-ink-400">closing</span>
+        </div>
+      </div>
+      <div className="min-w-0 flex-1 space-y-2.5">
+        {rows.map((row) => (
+          <div key={row.label}>
+            <div className="flex items-center justify-between text-sm">
+              <span className="inline-flex items-center gap-1.5 text-ink-900">
+                <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color }} />
+                {row.label}
+              </span>
+              <span className="font-mono font-semibold text-ink-900">
+                {row.value} · {pct(row.value)}%
+              </span>
+            </div>
+            <p className="ml-4 text-[11px] text-ink-400">{formatRupiah(row.omset)}</p>
+          </div>
+        ))}
+        {total === 0 && <p className="text-sm text-ink-400">Belum ada closing untuk periode ini.</p>}
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerOverviewPage() {
   const [from, setFrom] = useState(monthStart());
   const [to, setTo] = useState(todayJakarta());
   const [attribution, setAttribution] = useState<"cash" | "cohort">("cash");
   const [data, setData] = useState<Overview | null>(null);
+  const [split, setSplit] = useState<SourceSplit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +166,12 @@ export default function OwnerOverviewPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Gagal memuat dashboard"))
       .finally(() => setLoading(false));
   }, [from, to, attribution]);
+
+  useEffect(() => {
+    apiFetch<SourceSplit>(`/api/dashboard/closing-source-split?from=${from}&to=${to}`)
+      .then(setSplit)
+      .catch(() => setSplit(null));
+  }, [from, to]);
 
   const modeLabel = attribution === "cash" ? "Cash basis" : "Cohort";
   const carry = (num: number, den: number) =>
@@ -399,6 +470,20 @@ export default function OwnerOverviewPage() {
           </div>
         </section>
       )}
+
+      {/* Closing: paid traffic vs other. Bagan pembagi — bukan bagian metrik
+          ad-funnel; menghitung semua closing hanya untuk melihat porsinya. */}
+      <section className="rounded-card border border-line bg-card p-4">
+        <h2 className="mb-1 text-sm font-semibold text-ink-600">Closing: paid traffic vs other</h2>
+        <p className="mb-4 text-xs text-ink-400">
+          Porsi closing dari iklan (tertaut campaign) vs organik/lainnya. Terpisah dari ROI iklan.
+        </p>
+        {split ? (
+          <ClosingSourceDonut split={split} />
+        ) : (
+          <p className="text-sm text-ink-400">Memuat...</p>
+        )}
+      </section>
     </div>
   );
 }
