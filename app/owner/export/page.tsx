@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatDateID, monthRange, todayJakarta } from "@/lib/utils/date";
 import { apiFetch } from "@/lib/api/client";
 import { Banner } from "@/components/ui/Banner";
 
-async function downloadExport(endpoint: string, from: string, to: string, filename: string) {
+async function downloadExport(
+  endpoint: string,
+  from: string,
+  to: string,
+  filename: string,
+  extra: Record<string, string> = {},
+) {
   const res = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to }),
+    body: JSON.stringify({ from, to, ...extra }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -50,7 +56,18 @@ export default function ExportCenterPage() {
   const [loadingOp, setLoadingOp] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [loadingGass, setLoadingGass] = useState(false);
+  const [loadingCsPerf, setLoadingCsPerf] = useState(false);
   const [copied, setCopied] = useState<{ rows: number; missing: number } | null>(null);
+
+  // Daftar CS untuk filter "Performa CS". role cs saja; owner/hrd/advertiser
+  // tidak punya baris lead_reports sebagai CS.
+  const [csList, setCsList] = useState<{ id: string; full_name: string }[]>([]);
+  const [csId, setCsId] = useState("");
+  useEffect(() => {
+    apiFetch<{ id: string; full_name: string; role: string }[]>("/api/users")
+      .then((users) => setCsList(users.filter((u) => u.role === "cs").map((u) => ({ id: u.id, full_name: u.full_name }))))
+      .catch(() => setCsList([]));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -165,6 +182,54 @@ export default function ExportCenterPage() {
               {copied.missing > 0 && ` ${copied.missing} baris belum punya nomor WA CS — isi lewat Manajemen user.`}
             </p>
           )}
+        </div>
+      </div>
+
+      {/* Performa CS — corong harian per CS (leads masuk, konsultasi, offer,
+          closing) untuk laporan bulanan. Bisa difilter satu CS. */}
+      <div className="rounded-[10px] border border-line bg-card p-4">
+        <h2 className="font-display font-semibold text-ink-900">Performa CS (CSV)</h2>
+        <p className="mt-1 text-xs text-ink-400">
+          Satu baris per CS per hari, lead dipecah per sumber (Facebook LP, CTWA, Google, dst) plus
+          status: No Respon, Konsul, Penawaran, Closing. Pilih semua CS atau satu CS.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <select
+            value={csId}
+            onChange={(e) => setCsId(e.target.value)}
+            className="h-10 rounded-lg border border-line px-2 text-sm text-ink-900"
+          >
+            <option value="">Semua CS</option>
+            {csList.map((cs) => (
+              <option key={cs.id} value={cs.id}>
+                {cs.full_name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={loadingCsPerf}
+            onClick={async () => {
+              setLoadingCsPerf(true);
+              setError(null);
+              try {
+                await downloadExport(
+                  "/api/exports/cs-performance",
+                  from,
+                  to,
+                  `performa-cs-${from}-${to}.csv`,
+                  csId ? { cs: csId } : {},
+                );
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Gagal export");
+              } finally {
+                setLoadingCsPerf(false);
+              }
+            }}
+            className="h-10 rounded-lg bg-brass px-4 text-sm font-semibold text-on-brass disabled:opacity-50"
+          >
+            {loadingCsPerf ? "Mengunduh..." : "Unduh CSV"}
+          </button>
         </div>
       </div>
 
