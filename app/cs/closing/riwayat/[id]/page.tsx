@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { formatDateID } from "@/lib/utils/date";
+import { jakartaPaymentTimeToIso, isoToJakartaPaymentTime } from "@/lib/utils/payment-time";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { Banner } from "@/components/ui/Banner";
 
@@ -18,6 +19,7 @@ interface ClosingRow {
   program_id: string;
   total_value: number;
   paid_amount: number;
+  first_payment_received_at?: string | null;
   price_note: string | null;
   province_id: string | null;
   city_id: string | null;
@@ -32,6 +34,7 @@ interface Program {
 
 const inputClass = "mt-1.5 h-[46px] w-full rounded-lg border border-line px-3 text-[15px]";
 const labelClass = "text-[13px] text-ink-600";
+const capiLabels: Record<string, string> = { pending: "Dalam antrean", processing: "Sedang dikirim", accepted: "Diterima Meta", failed: "Menunggu coba ulang", held: "Perlu diperiksa admin", cancelled: "Pengiriman dihentikan" };
 
 export default function ClosingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,11 +45,21 @@ export default function ClosingDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [capiStatus, setCapiStatus] = useState("Memuat status…");
+
+  const refreshCapiStatus = useCallback(async () => {
+    try {
+      const { events } = await apiFetch<{ events: { mode: string; status: string }[] }>(`/api/capi/events?closing_id=${encodeURIComponent(id)}`);
+      const event = events[0];
+      setCapiStatus(event ? `${event.mode === 'dry_run' ? 'Simulasi' : event.mode === 'test' ? 'Uji koneksi' : 'Produksi'} · ${capiLabels[event.status] ?? event.status}` : "Belum masuk antrean; periksa kelayakan dan status integrasi dengan admin.");
+    } catch { setCapiStatus("Status integrasi belum tersedia."); }
+  }, [id]);
 
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<ClosingRow["payment_status"]>("dp");
   const [paidAmount, setPaidAmount] = useState(0);
+  const [firstPayment, setFirstPayment] = useState("");
   const [priceNote, setPriceNote] = useState("");
 
   const [cancelling, setCancelling] = useState(false);
@@ -54,6 +67,7 @@ export default function ClosingDetailPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
+    void refreshCapiStatus();
     Promise.all([apiFetch<ClosingRow[]>("/api/closings"), apiFetch<Program[]>("/api/programs")])
       .then(([rows, p]) => {
         const found = rows.find((r) => r.id === id) ?? null;
@@ -64,17 +78,20 @@ export default function ClosingDetailPage() {
           setEmail(found.email ?? "");
           setPaymentStatus(found.payment_status === "cancelled" ? "dp" : found.payment_status);
           setPaidAmount(found.paid_amount);
+          setFirstPayment(isoToJakartaPaymentTime(found.first_payment_received_at));
           setPriceNote(found.price_note ?? "");
         }
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, refreshCapiStatus]);
 
   async function saveChanges() {
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
+      // Preserve the original seconds/precision on subsequent installment edits.
+      const paymentTime = closing?.first_payment_received_at ?? jakartaPaymentTimeToIso(firstPayment);
       await apiFetch(`/api/closings/${id}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -82,10 +99,13 @@ export default function ClosingDetailPage() {
           email: email || undefined,
           payment_status: paymentStatus,
           paid_amount: paidAmount,
+          first_payment_received_at: paymentTime,
           price_note: priceNote || undefined,
         }),
       });
+      setClosing(row => row ? { ...row, first_payment_received_at: paymentTime, paid_amount: paidAmount, payment_status: paymentStatus } : row);
       setSaved(true);
+      void refreshCapiStatus();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Gagal menyimpan perubahan");
     } finally {
@@ -163,6 +183,7 @@ export default function ClosingDetailPage() {
         </section>
 
         <section className="space-y-3.5 rounded-[10px] border border-line bg-card p-4">
+          <div className="rounded-lg bg-paper p-3 text-sm"><p className="font-medium">Purchase Meta</p><p className="mt-1">{capiStatus}</p><p className="mt-1 text-xs text-ink-600">Satu Purchase memakai total nilai booking. Status diterima bukan kepastian atribusi iklan.</p><button type="button" onClick={() => void refreshCapiStatus()} className="mt-2 underline">Segarkan status</button></div>
           <h2 className="text-[13px] font-semibold text-ink-900">Koreksi</h2>
           <div>
             <label className={labelClass}>Nama belakang</label>
@@ -204,6 +225,11 @@ export default function ClosingDetailPage() {
               disabled={isCancelled}
               className={inputClass}
             />
+          </div>
+          <div>
+            <label htmlFor="first-payment-edit" className={labelClass}>Waktu pembayaran pertama diterima (WIB)</label>
+            <input id="first-payment-edit" type="datetime-local" value={firstPayment} onChange={e => setFirstPayment(e.target.value)} disabled={isCancelled || Boolean(closing.first_payment_received_at)} className={inputClass} />
+            <p className="mt-2 text-xs text-ink-600">Waktu asli, bukan waktu input ulang. Catatan lama tidak otomatis dikirim ke Meta. Koreksi waktu yang sudah tersimpan ditangani melalui pemeriksaan admin.</p>
           </div>
           <div>
             <label className={labelClass}>Catatan harga</label>

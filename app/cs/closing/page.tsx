@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { apiFetch, ApiError } from "@/lib/api/client";
 import { formatDateID, todayJakarta } from "@/lib/utils/date";
+import { jakartaPaymentTimeToIso } from "@/lib/utils/payment-time";
 import { formatRupiah } from "@/lib/utils/rupiah";
 import { Banner } from "@/components/ui/Banner";
 
@@ -75,6 +76,7 @@ const FIELD_STEP: Record<string, number> = {
   price_note: 2,
   payment_status: 2,
   paid_amount: 2,
+  first_payment_received_at: 2,
   is_price_override: 2,
   province_id: 3,
   city_id: 3,
@@ -91,6 +93,7 @@ const labelClass = "text-[13px] text-ink-600";
 const DRAFT_KEY = "closing-draft-v1";
 
 const DEFAULT_FORM = {
+  submission_id: "",
   first_name: "",
   last_name: "",
   whatsapp: "",
@@ -108,6 +111,7 @@ const DEFAULT_FORM = {
   price_note: "",
   payment_status: "dp" as "dp" | "partial" | "lunas" | "refunded",
   paid_amount: 0,
+  first_payment_received_at: "",
   province_id: "",
   city_id: "",
   closing_date: todayJakarta(),
@@ -115,13 +119,17 @@ const DEFAULT_FORM = {
 
 function loadDraft(): typeof DEFAULT_FORM {
   if (typeof window === "undefined") return DEFAULT_FORM;
+  const fresh = { ...DEFAULT_FORM, submission_id: crypto.randomUUID() };
   try {
     const raw = sessionStorage.getItem(DRAFT_KEY);
-    if (raw) return { ...DEFAULT_FORM, ...JSON.parse(raw) };
+    if (raw) {
+      const saved = JSON.parse(raw);
+      return { ...fresh, ...saved, submission_id: saved.submission_id || fresh.submission_id };
+    }
   } catch {
     // storage diblokir / JSON rusak — mulai dari kosong.
   }
-  return DEFAULT_FORM;
+  return fresh;
 }
 
 export default function ClosingFormPage() {
@@ -254,6 +262,7 @@ export default function ClosingFormPage() {
         method: "POST",
         body: JSON.stringify({
           ...form,
+          first_payment_received_at: jakartaPaymentTimeToIso(form.first_payment_received_at),
           pdp_consent_at: form.pdp_consent ? new Date().toISOString() : undefined,
           is_price_override: priceOverride,
           force,
@@ -628,6 +637,12 @@ export default function ClosingFormPage() {
                 className={inputClass}
               />
               {fieldErrors.paid_amount && <p className="mt-1 text-xs text-danger">{fieldErrors.paid_amount}</p>}
+            </div>
+            <div>
+              <label htmlFor="first-payment" className={labelClass}>Waktu DP atau pembayaran pertama diterima (WIB)</label>
+              <input id="first-payment" type="datetime-local" value={form.first_payment_received_at} onChange={(e) => setForm((f) => ({ ...f, first_payment_received_at: e.target.value }))} className={inputClass} />
+              <p className="mt-2 text-xs text-ink-600">Isi waktu pembayaran yang sudah dikonfirmasi. Jika belum diketahui, biarkan kosong. Purchase memakai total booking, bukan nominal DP; cicilan tidak menambah Purchase.</p>
+              {fieldErrors.first_payment_received_at && <p className="mt-1 text-xs text-danger">{fieldErrors.first_payment_received_at}</p>}
             </div>
           </section>
         )}

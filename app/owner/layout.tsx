@@ -50,6 +50,7 @@ const SECONDARY = [
   { href: "/owner/riwayat", label: "Riwayat" },
   { href: "/owner/settings/sources", label: "Lead Source" },
   { href: "/owner/settings/import", label: "Import Ads" },
+  { href: "/owner/capi", label: "Purchase Meta" },
   { href: "/owner/settings/lock", label: "Period Lock" },
   { href: "/owner/settings/audit", label: "Audit Log" },
   { href: "/owner/settings/users", label: "User" },

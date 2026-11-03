@@ -19,6 +19,15 @@ const base = {
 };
 
 describe('DS-14 closing schema', () => {
+  it('accepts a stable submission UUID and rejects a malformed retry identity', () => {
+    expect(closingSchema.safeParse({ ...base, submission_id: '11111111-1111-4111-8111-111111111111' }).success).toBe(true);
+    expect(closingSchema.safeParse({ ...base, submission_id: 'not-a-uuid' }).success).toBe(false);
+  });
+  it('does not infer legacy payment time and rejects zero verified payments', () => {
+    const legacy = closingSchema.parse({ ...base, first_payment_received_at: '' });
+    expect(legacy.first_payment_received_at).toBeUndefined();
+    expect(closingSchema.safeParse({ ...base, paid_amount: 0, first_payment_received_at: '2026-08-18T09:00:00Z' }).success).toBe(false);
+  });
   it('closing valid', () => {
     const r = closingSchema.safeParse(base);
     expect(r.success).toBe(true);

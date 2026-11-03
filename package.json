@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:dev": "tsx scripts/seed-dev.ts"
+    "seed:dev": "tsx scripts/seed-dev.ts",
+    "capi:trial": "node --import tsx scripts/capi-trial.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

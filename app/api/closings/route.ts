@@ -78,7 +78,9 @@ export async function POST(request: Request) {
   // closing failed outright with "new row violates row-level security
   // policy" before this fix. { count: "exact" } gets a row count from the
   // command tag instead, no RETURNING involved, no RLS SELECT check.
-  const id = crypto.randomUUID();
+  // One draft keeps its identity across network retries. The primary key is
+  // the final guard even when simultaneous requests pass the soft duplicate check.
+  const id = parsed.data.submission_id ?? crypto.randomUUID();
   const { error, count } = await supabase
     .from("closings")
     .insert(
@@ -107,6 +109,7 @@ export async function POST(request: Request) {
         price_note: parsed.data.price_note,
         payment_status: parsed.data.payment_status,
         paid_amount: parsed.data.paid_amount,
+        first_payment_received_at: parsed.data.first_payment_received_at,
         province_id: parsed.data.province_id,
         city_id: parsed.data.city_id,
         address: parsed.data.address,
@@ -117,6 +120,8 @@ export async function POST(request: Request) {
     );
 
   if (error) {
+    if (error.code === "23505") return NextResponse.json(fail("VALIDATION_ERROR", "Permintaan ini sudah tercatat. Periksa riwayat closing sebelum membuat booking baru."), { status: 422 });
+    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", "Periksa nilai dan waktu pembayaran yang sebenarnya."), { status: 422 });
     if (error.message.includes("Nomor WhatsApp tidak valid")) {
       return NextResponse.json(
         fail("VALIDATION_ERROR", "Nomor WhatsApp tidak valid", { whatsapp: error.message }),
