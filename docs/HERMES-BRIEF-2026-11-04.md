@@ -15,11 +15,12 @@ Dokumen ini melanjutkan `HERMES-START.md` dan `hermes-capi-handoff.md`; keduanya
 
 ## 2. ⚠️ Larangan keras putaran ini
 
-1. **Jangan jalankan `scripts/apply-migrations.sh` ke database produksi dari branch ini.** Script itu menjalankan *semua* file `supabase/migrations/0*.sql`, jadi 032 ikut terpasang ke produksi. Migrasi 032 hanya ke **staging/database test** sampai Maszen menyetujui pilot. Untuk produksi, tetap dari `main`.
-2. **Jangan merge/push ke `main`.** Catatan lama menyebut VPS (`/opt/labbaika-reporting`) menarik `main` untuk deploy. Verifikasi dulu (tugas A1).
-3. Jangan set `META_CAPI_ROUTE_VERIFIED=true` atau `META_CAPI_ALLOW_LIVE=true` di lingkungan mana pun sebelum A2 terbukti dan Maszen setuju. Mode produksi tetap `off`.
-4. Jangan kirim event dengan `event_time` digeser ke hari ini, jangan backfill September, jangan buat `ctwa_clid` dari nomor/campaign/fbclid.
-5. Jangan tempel token, nomor/email pelanggan, hash, full click ID, atau isi chat di chat, PR, log, atau dokumen.
+1. **Jangan jalankan `scripts/apply-migrations.sh` ke database produksi dari branch ini.** Script itu menjalankan *semua* file `supabase/migrations/0*.sql`, jadi 032 ikut terpasang ke produksi. Migrasi 032 hanya ke **staging/database test** sampai Maszen menyetujui pilot. Untuk produksi, tetap dari `main`. Kapan pun 032 dipasang (staging maupun nanti produksi), jalankan dulu `scripts/capi-preflight-032.sql` — tidak menyimpan apa pun, dan berhenti dengan error bila DB target belum sampai 031, view CS pernah diubah manual, atau ada sisa objek `capi_*` dari tempelan SQL Editor.
+2. **Urutan wajib kalau PR #2 nanti di-merge:** backup → preflight → pasang 032 di produksi → baru merge ke `main`. Kebalikannya membuat form closing error saat CS mengisi waktu DP (kolom belum ada).
+3. **Jangan merge/push ke `main`.** Catatan lama menyebut VPS (`/opt/labbaika-reporting`) menarik `main` untuk deploy. Verifikasi dulu (tugas A1).
+4. Jangan set `META_CAPI_ROUTE_VERIFIED=true` atau `META_CAPI_ALLOW_LIVE=true` di lingkungan mana pun sebelum A2 terbukti dan Maszen setuju. Mode produksi tetap `off`.
+5. Jangan kirim event dengan `event_time` digeser ke hari ini, jangan backfill September, jangan buat `ctwa_clid` dari nomor/campaign/fbclid.
+6. Jangan tempel token, nomor/email pelanggan, hash, full click ID, atau isi chat di chat, PR, log, atau dokumen.
 
 ## 3. Tugas, urutan, dan definisi selesai
 
@@ -30,7 +31,7 @@ Dokumen ini melanjutkan `HERMES-START.md` dan `hermes-capi-handoff.md`; keduanya
 | **A3** | **Inventaris aset**: Business Portfolio, ad account, Page, dataset/pixel, app, WABA, nomor CS — pemilik dan izin masing-masing; siapa yang bisa membuat system-user token untuk dataset | Matriks aset + izin; ID boleh, token tidak |
 | **A4** | **Jalur WhatsApp resmi** (fase 2, riset saja): kelayakan Coexistence untuk nomor CS sekarang, atau opsi provider/nomor terpisah, biaya, dampak ke kerja CS | Opsi nyata + rekomendasi; **jangan memindahkan nomor** sebelum dibahas dengan Maszen |
 | **A5** | **Data September**: export closing September (pastikan tahunnya), cohort berdasarkan `closing_date` *atau* pembayaran pertama (pilih satu, tulis), konversi ke JSON/CSV sesuai `capi-trial-plan.md`, jalankan `npm run capi:trial -- <file privat>` | Output agregat CLI + rekonsiliasi jumlah/nilai sebelum-sesudah konversi. File asli tetap di luar Git |
-| **A6** | **Staging** (setelah A1–A3): project Supabase staging/test terpisah dari produksi, backup, `apply-migrations.sh` ke staging, env CAPI dari `.env.example` (dataset **test**), deploy branch ke staging, scheduler tiap 5 menit memanggil `POST /api/capi/worker` dengan `Authorization: Bearer <CAPI_WORKER_SECRET>` | URL staging, migrasi 001–032 lulus, heartbeat muncul di `/owner/capi` |
+| **A6** | **Staging** (setelah A1–A3): project Supabase staging/test terpisah dari produksi, backup, lalu **`psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/capi-preflight-032.sql` harus exit 0** sebelum `apply-migrations.sh` ke staging. Env CAPI dari `.env.example` (dataset **test**), deploy branch ke staging. Scheduler tiap 5 menit pakai `scripts/capi-worker-tick.sh` (petunjuk cron di kepala file; secret di file env mode 600, tidak di crontab) | Output preflight, URL staging, migrasi 001–032 lulus, heartbeat muncul di `/owner/capi`, log tick `http=200` |
 | **A7** | **UAT staging** — checklist §4 | Checklist terisi, dengan screenshot tanpa PII |
 | **A8** | **Test Events Meta**: satu booking uji baru (data sintetis, waktu DP nyata saat itu) di mode `test` | Event terlihat di Test Events dengan value & currency benar; respons Meta dicatat tersamarkan |
 | **A9** | **Runbook rekonsiliasi** event `held`: cara mencari `event_id` (`labbaika:booking:<uuid>:purchase:v1`, di test berprefiks `test:integration:`) di Events Manager/diagnostik, bukti apa yang cukup untuk "diterima" vs "tidak diterima", siapa yang memutuskan | Prosedur 1 halaman. Ini yang dipakai owner saat menekan "Rekonsiliasi" di monitor |

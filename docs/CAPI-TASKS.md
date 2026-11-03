@@ -31,6 +31,8 @@ Status diperbarui 4 November 2026 oleh Claude Code (audit P0.2 + P1.1–P1.3; li
 | C23 | Fix: booking yang tidak layak saat insert (mis. total ≠ harga × pax) lalu dikoreksi kini masuk antrean satu kali. Guard parsial dihapus; duplikat/backfill tetap dijaga `exists()` + waktu aktivasi | C11 | Claude Code | Selesai lokal; dibuktikan repro + SQL test |
 | C24 | Pesan 422 untuk SQLSTATE 23514 membedakan aturan pembayaran CAPI dari CHECK constraint lain (`lib/api/check-violation.ts`) | C10 | Claude Code | Selesai lokal |
 | C25 | Workspace `node_modules` korup (binary rolldown hilang) dipulihkan dengan `npm ci` | — | Claude Code | Selesai lokal |
+| C26 | `scripts/capi-preflight-032.sql`: cek DB target sebelum memasang 032 (migrasi 027–031 ada, dependensi 032, definisi `v_closings_cs` persis migrasi 013, tak ada sisa objek `capi_*`). Tidak menyimpan apa pun; exit non-zero bila FAIL | C10 | Claude Code | Selesai lokal; diuji di 4 keadaan DB (setara produksi, sudah terpasang, sisa manual, view diubah) + 032 terpasang bersih dari keadaan setara produksi |
+| C27 | `scripts/capi-worker-tick.sh`: tick scheduler, secret via stdin (tidak di argv/crontab), flock bila tersedia, exit non-zero bila bukan HTTP 200 | C15 | Claude Code | Selesai lokal; diuji terhadap server palsu (200/401/koneksi gagal/env kosong). Pemasangan di host = H06 |
 
 ## Integrasi Hermes — urutan yang dapat dikerjakan
 
