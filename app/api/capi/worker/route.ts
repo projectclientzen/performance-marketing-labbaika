@@ -12,12 +12,24 @@ export async function POST(request: Request) {
   const config = readDeliveryConfig();
   if (!config || !process.env.SUPABASE_SERVICE_ROLE_KEY) return Response.json({ error: 'not_configured' }, { status: 503 });
   const db = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  // One heartbeat row per run: counts and machine codes only, never payloads, tokens or PII.
+  const logRun = async (mode: string, outcome: string, counts: Partial<Record<'claimed' | 'accepted' | 'failed' | 'held' | 'completion_unknown', number>> = {}) => {
+    const { error } = await db.from('capi_worker_runs').insert({ brand_id: config.brandId, mode, outcome, ...counts });
+    return !error;
+  };
   const { data: settings, error: settingsError } = await db.from('capi_settings').select('mode,dataset_id').eq('brand_id', config.brandId).maybeSingle();
   if (settingsError) return Response.json({ error: 'settings_unavailable' }, { status: 503 });
-  if (!settings || !['test', 'live'].includes(settings.mode)) return Response.json({ claimed: 0, mode: settings?.mode ?? 'off' });
-  if (settings.dataset_id !== config.datasetId || (settings.mode === 'live' && !config.allowLive) || (settings.mode === 'test' && !config.testCode)) return Response.json({ error: 'mode_not_configured' }, { status: 503 });
+  const mode = settings?.mode ?? 'off';
+  if (!['test', 'live'].includes(mode)) return Response.json({ claimed: 0, mode, run_logged: await logRun(mode, 'idle') });
+  if (settings!.dataset_id !== config.datasetId || (mode === 'live' && !config.allowLive) || (mode === 'test' && !config.testCode)) {
+    await logRun(mode, 'mode_not_configured');
+    return Response.json({ error: 'mode_not_configured' }, { status: 503 });
+  }
   const { data: events, error } = await db.rpc('claim_capi_events', { p_brand_id: config.brandId, p_limit: 3, p_max_age_seconds: config.maxEventAgeSeconds });
-  if (error) return Response.json({ error: 'queue_unavailable' }, { status: 503 });
+  if (error) {
+    await logRun(mode, 'queue_unavailable');
+    return Response.json({ error: 'queue_unavailable' }, { status: 503 });
+  }
   const counts = { claimed: events?.length ?? 0, accepted: 0, failed: 0, held: 0, completion_unknown: 0 };
   for (const event of events ?? []) {
     let outcome: { status: 'accepted' | 'failed' | 'held'; code: string } = { status: 'held', code: 'preflight_ineligible' };
@@ -38,5 +50,6 @@ export async function POST(request: Request) {
     if (completionError || !completed) counts.completion_unknown++;
     else counts[outcome.status]++;
   }
-  return Response.json(counts);
+  const runLogged = await logRun(mode, counts.completion_unknown > 0 ? 'completion_unknown' : 'ok', counts);
+  return Response.json({ ...counts, run_logged: runLogged });
 }

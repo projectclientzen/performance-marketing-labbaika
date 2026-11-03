@@ -1,6 +1,6 @@
 # Backlog kecil dan pembagian kerja CAPI
 
-Status 7 Oktober 2026. `Selesai lokal` berarti file dibuat dan pemeriksaan lokal yang relevan lulus; bukan sudah dipasang di produksi. `Menunggu Hermes` berarti bergantung akun, konfigurasi lingkungan, atau sumber data. Subagen sempat mengerjakan core, outbox dan riset, lalu terhenti karena batas kredit workspace; integrasi dan pengujian diteruskan agen utama.
+Status diperbarui 4 November 2026 oleh Claude Code (audit P0.2 + P1.1–P1.3; lihat C22–C25 dan O01–O03). Status awal 7 Oktober 2026. `Selesai lokal` berarti file dibuat dan pemeriksaan lokal yang relevan lulus; bukan sudah dipasang di produksi. `Menunggu Hermes` berarti bergantung akun, konfigurasi lingkungan, atau sumber data. Subagen sempat mengerjakan core, outbox dan riset, lalu terhenti karena batas kredit workspace; integrasi dan pengujian diteruskan agen utama.
 
 ## Fase 1 — kode dan spesifikasi
 
@@ -27,6 +27,10 @@ Status 7 Oktober 2026. `Selesai lokal` berarti file dibuat dan pemeriksaan lokal
 | C19 | Seluruh SQL tests + rollback/reapply database disposable | C10–13 | Codex | Selesai lokal |
 | C20 | Build/typecheck/lint dan catatan batas pengujian | C18–19 | Codex | Lihat VALIDATION-CAPI.md |
 | C21 | Handoff, kontrak export September, task/context, arsip tanpa secrets | C01–20 | Codex | Selesai lokal |
+| C22 | Fix: booking batal/consent dicabut/nilai berubah saat event `processing` tidak lagi menghapus penerimaan Meta. Baris ditahan (`held`) dengan lease tetap; completion terlambat tercatat sebagai `accepted` + `accepted_after_booking_change` | C11–13 | Claude Code | Selesai lokal; dibuktikan repro + SQL test |
+| C23 | Fix: booking yang tidak layak saat insert (mis. total ≠ harga × pax) lalu dikoreksi kini masuk antrean satu kali. Guard parsial dihapus; duplikat/backfill tetap dijaga `exists()` + waktu aktivasi | C11 | Claude Code | Selesai lokal; dibuktikan repro + SQL test |
+| C24 | Pesan 422 untuk SQLSTATE 23514 membedakan aturan pembayaran CAPI dari CHECK constraint lain (`lib/api/check-violation.ts`) | C10 | Claude Code | Selesai lokal |
+| C25 | Workspace `node_modules` korup (binary rolldown hilang) dipulihkan dengan `npm ci` | — | Claude Code | Selesai lokal |
 
 ## Integrasi Hermes — urutan yang dapat dikerjakan
 
@@ -68,9 +72,9 @@ Status W01–W06: **dirancang, belum diimplementasikan**. Jangan menandai selesa
 | M01 | Import metrics Purchase/value Ads Insights sesuai action type akun | Backlog; H09 |
 | M02 | Panel banding booking value, cash, delivery dan attributed values | Backlog; M01 |
 | M03 | Desain eksperimen CPA booking/ROAS/cancellation, cohort setara | Backlog; izin eksperimen dan baseline |
-| O01 | Coverage monitor booking yang belum masuk antrean beserta alasan | Backlog; simulator sudah memberi agregat offline |
-| O02 | UI reconciliation untuk held/hasil ambigu dengan audit dan guard dedup | Backlog; H02 menentukan prosedur aman; belum ada tombol resend |
-| O03 | Audit perubahan settings CAPI dan detail run worker persisten | Backlog; audit perubahan closing sudah memakai audit_logs yang ada |
+| O01 | Coverage monitor booking yang belum masuk antrean beserta alasan | **Selesai lokal** (4 Nov): RPC `capi_coverage` (owner/advertiser, brand sendiri, read-only), `GET /api/capi/monitor`, panel di `/owner/capi`. Tidak mendaftarkan transaksi lama. Validitas nomor/email hanya dicek TS → muncul sebagai event `held`, bukan di coverage |
+| O02 | UI reconciliation untuk held/hasil ambigu dengan audit dan guard dedup | **Selesai lokal** (4 Nov): RPC `resolve_capi_event` + `POST /api/capi/events/[id]/resolve`. Dua keputusan saja: dikonfirmasi diterima → `accepted`, dikonfirmasi tidak diterima → `cancelled`. Catatan bukti wajib, diaudit ke `audit_logs`. **Tetap tanpa tombol resend** sampai H02 memastikan kontrak dedup Meta. Prosedur pemeriksaan di Meta oleh Hermes (H13) |
+| O03 | Audit perubahan settings CAPI dan detail run worker persisten | **Selesai lokal** (4 Nov): trigger `capi_settings_audit` (aktor, mode/dataset lama-baru) dan tabel `capi_worker_runs` (hitungan + kode, tanpa payload/token/PII) sebagai heartbeat; monitor memperingatkan bila worker tak jalan 15 menit atau ada `completion_unknown` |
 | O04 | Upload/map XLSX langsung dalam dashboard | Backlog; saat ini konversi file oleh Hermes |
 | O05 | Audit export/analytics lama untuk refund dan duplikat booking manual | Backlog terpisah, menjaga definisi report lama |
 

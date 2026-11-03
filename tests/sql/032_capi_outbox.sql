@@ -109,4 +109,110 @@ do $$ begin
   if (select count(*) from capi_events where closing_id=(select id from capi_test_bookings where label='dry'))<>1 then raise exception 'dry event promoted/recreated'; end if;
   if (select count(*) from capi_events where brand_id=(select brand from capi_test_context) and status='accepted')<>1 then raise exception 'accepted audit lost'; end if;
 end $$;
+
+-- R1: a booking cancelled while its request is in flight must not erase Meta's acceptance.
+select pg_temp.make_capi_booking('inflight');
+set local role service_role;
+create temp table capi_inflight as select * from claim_capi_events((select brand from capi_test_context),1,604800);
+reset role;
+do $$ begin if (select count(*) from capi_inflight)<>1 then raise exception 'in-flight fixture not claimed'; end if; end $$;
+update closings set payment_status='cancelled' where id=(select id from capi_test_bookings where label='inflight');
+do $$ begin
+  if not exists(select 1 from capi_events where closing_id=(select id from capi_test_bookings where label='inflight')
+    and status='held' and last_error='cancelled_during_delivery' and lease_token is not null) then
+    raise exception 'in-flight cancel must hold and keep lease';
+  end if;
+end $$;
+set local role service_role;
+do $$ begin if not (select complete_capi_event(id,lease_token,'accepted') from capi_inflight) then raise exception 'late acceptance not recorded'; end if; end $$;
+reset role;
+do $$ begin
+  if not exists(select 1 from capi_events where closing_id=(select id from capi_test_bookings where label='inflight')
+    and status='accepted' and accepted_at is not null and last_error='accepted_after_booking_change') then
+    raise exception 'late acceptance must be accepted and flagged';
+  end if;
+end $$;
+
+-- R1b: an in-flight row held by a value change keeps its hold reason when Meta did not accept.
+select pg_temp.make_capi_booking('inflight-change');
+set local role service_role;
+create temp table capi_inflight2 as select * from claim_capi_events((select brand from capi_test_context),1,604800);
+reset role;
+update closings set total_value=62000000, price_at_transaction=31000000 where id=(select id from capi_test_bookings where label='inflight-change');
+set local role service_role;
+do $$ begin if not (select complete_capi_event(id,lease_token,'held','delivery_unknown') from capi_inflight2) then raise exception 'held completion not recorded'; end if; end $$;
+reset role;
+do $$ begin
+  if not exists(select 1 from capi_events where closing_id=(select id from capi_test_bookings where label='inflight-change')
+    and status='held' and last_error='snapshot_changed' and lease_token is null) then
+    raise exception 'non-accepted completion must keep hold reason and release lease';
+  end if;
+end $$;
+
+-- R2: a booking ineligible at insert (inconsistent value) is queued once after correction.
+do $$ declare x capi_test_context%rowtype; booking uuid; begin
+  select * into x from capi_test_context;
+  insert into closings(brand_id,cs_id,first_name,whatsapp_raw,lead_date,source_id,previous_stage,closing_date,program_id,departure_id,room_type,pax,price_at_transaction,total_value,payment_status,paid_amount,pdp_consent,pdp_consent_at,first_payment_received_at)
+  values(x.brand,x.cs_id,'Synthetic','081234560033',current_date-2,x.source,'offering',current_date,x.program,x.departure,'quad',2,30000000,59000000,'dp',10000000,true,now(),now()) returning id into booking;
+  insert into capi_test_bookings values('mismatch',booking);
+  if exists(select 1 from capi_events where closing_id=booking) then raise exception 'inconsistent value queued'; end if;
+  update closings set total_value=60000000 where id=booking;
+  if (select count(*) from capi_events where closing_id=booking and value_snapshot=60000000)<>1 then raise exception 'corrected booking not queued'; end if;
+  update closings set paid_amount=20000000, payment_status='partial' where id=booking;
+  if (select count(*) from capi_events where closing_id=booking)<>1 then raise exception 'installment after correction duplicated'; end if;
+end $$;
+
+-- P1.1: coverage shows why new bookings are not queued; owner/advertiser only, own brand only.
+do $$ declare x capi_test_context%rowtype; begin
+  select * into x from capi_test_context;
+  insert into closings(brand_id,cs_id,first_name,whatsapp_raw,lead_date,source_id,previous_stage,closing_date,program_id,departure_id,room_type,pax,price_at_transaction,total_value,payment_status,paid_amount,pdp_consent,pdp_consent_at)
+  values(x.brand,x.cs_id,'Synthetic','081234560034',current_date-2,x.source,'offering',current_date,x.program,x.departure,'quad',2,30000000,60000000,'dp',10000000,true,now());
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',owner_id::text,true) from capi_test_context;
+do $$ begin
+  if coalesce((select bookings from capi_coverage((select brand from capi_test_context)) where reason='first_payment_time_missing'),0)<1 then
+    raise exception 'coverage misses booking without payment time';
+  end if;
+  begin perform capi_coverage((select other_brand from capi_test_context)); raise exception 'coverage cross brand'; exception when insufficient_privilege then null; end;
+end $$;
+select set_config('request.jwt.claim.sub',cs_id::text,true) from capi_test_context;
+do $$ begin begin perform capi_coverage((select brand from capi_test_context)); raise exception 'CS coverage access'; exception when insufficient_privilege then null; end; end $$;
+select set_config('request.jwt.claim.sub',hrd_id::text,true) from capi_test_context;
+do $$ begin begin perform capi_coverage((select brand from capi_test_context)); raise exception 'HRD coverage access'; exception when insufficient_privilege then null; end; end $$;
+
+-- P1.2: reconciliation is owner/advertiser only, needs a note, held rows only, and is audited.
+select set_config('request.jwt.claim.sub',cs_id::text,true) from capi_test_context;
+do $$ begin
+  begin perform resolve_capi_event((select id from capi_events where closing_id=(select id from capi_test_bookings where label='change')),'confirmed_not_received','cek events manager'); raise exception 'CS reconciliation'; exception when insufficient_privilege then null; end;
+end $$;
+select set_config('request.jwt.claim.sub',owner_id::text,true) from capi_test_context;
+do $$ declare ev uuid; begin
+  select id into ev from capi_events where closing_id=(select id from capi_test_bookings where label='change');
+  begin perform resolve_capi_event(ev,'confirmed_not_received','short'); raise exception 'note not required'; exception when invalid_parameter_value then null; end;
+  perform resolve_capi_event(ev,'confirmed_not_received','Events Manager: tidak ada event untuk ID ini');
+  begin perform resolve_capi_event(ev,'confirmed_received','Events Manager: tidak ada event untuk ID ini'); raise exception 'resolved twice'; exception when object_not_in_prerequisite_state then null; end;
+  begin perform resolve_capi_event((select id from capi_events where status='accepted' limit 1),'confirmed_not_received','Events Manager: diterima normal'); raise exception 'accepted row reconciled'; exception when object_not_in_prerequisite_state then null; end;
+end $$;
+reset role;
+do $$ begin
+  if not exists(select 1 from capi_events where closing_id=(select id from capi_test_bookings where label='change') and status='cancelled' and last_error='reconciled_not_received') then raise exception 'reconciliation not applied'; end if;
+  if not exists(select 1 from audit_logs where action='capi_reconcile' and user_id=(select owner_id from capi_test_context)) then raise exception 'reconciliation not audited'; end if;
+end $$;
+
+-- P1.3: settings changes carry the actor; worker runs are visible to owner, not to CS.
+do $$ begin
+  if not exists(select 1 from audit_logs where table_name='capi_settings' and user_id=(select owner_id from capi_test_context) and new_value->>'mode'='test') then
+    raise exception 'settings change not audited with actor';
+  end if;
+end $$;
+set local role service_role;
+insert into capi_worker_runs(brand_id,mode,outcome,claimed,accepted) select brand,'live','ok',1,1 from capi_test_context;
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',owner_id::text,true) from capi_test_context;
+do $$ begin if (select count(*) from capi_worker_runs)<>1 then raise exception 'owner cannot see worker runs'; end if; end $$;
+select set_config('request.jwt.claim.sub',cs_id::text,true) from capi_test_context;
+do $$ begin if exists(select 1 from capi_worker_runs) then raise exception 'CS sees worker runs'; end if; end $$;
+reset role;
 rollback;

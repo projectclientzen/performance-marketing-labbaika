@@ -1,4 +1,33 @@
-# Bukti validasi lokal — 7 Oktober 2026
+# Bukti validasi lokal — 4 November 2026 (Claude Code)
+
+Workspace `/Volumes/Daily Project/AI PROJECT ZEN/labbaika-capi`, branch `codex/labbaika-capi-booking-value`. HEAD sebelumnya baseline `048df937`; pekerjaan Codex di index di-commit lokal sebagai `d72cf72` (WIP, tidak di-push), lalu perubahan audit ini di atasnya. Tidak ada deployment, migrasi staging/produksi, atau event Meta nyata.
+
+| Pemeriksaan | Hasil aktual 4 Nov |
+|---|---|
+| `npm test` | **148 tests lulus pada 26 files** (145 lama + log run worker + 2 pesan check-violation) |
+| `npm run typecheck` | Lulus |
+| `npm run lint` | 0 error; 1 warning lama font `app/layout.tsx` |
+| `next build` | Exit 0; seluruh rute `/api/capi/*` dinamis. Log dynamic-server berasal dari `/api/health` lama |
+| Bootstrap + 33 migrations | Lulus, PostgreSQL 14.21 lokal disposable (CI memakai 15) |
+| `tests/sql/0*.sql` selain bootstrap | **21 files lulus, 0 gagal** — `032_capi_outbox.sql` kini juga menguji R1, R1b, R2, coverage, rekonsiliasi, audit settings, worker runs |
+| Rollback032 → reapply032 → test032 | Lulus |
+| CLI sintetis, clock 30 Sep / 4 Nov | 1 layak Rp60.000.000 (DP Rp10.000.000) / 0 layak, `EVENT_TOO_OLD_FOR_SELECTED_POLICY` |
+| `git diff --check` | Lulus |
+
+Lingkungan: Node.js 26.7.0, PostgreSQL 14.21. `node_modules` workspace sempat korup (binary `@rolldown/binding-darwin-arm64` hilang → `npm test` gagal memuat vitest); dipulihkan dengan `npm ci` sebelum angka di atas diambil.
+
+### Bug yang ditemukan audit dan dibuktikan sebelum diperbaiki
+
+- **R1** — booking dibatalkan (atau consent dicabut) saat event berstatus `processing`: trigger mengubahnya menjadi `cancelled` dan menghapus lease, sehingga `complete_capi_event` mengembalikan `false` walau Meta menerima. Hasil repro: baris akhir `cancelled`, `accepted_at` kosong. Kini: baris ditahan `held` (`cancelled_during_delivery`) dengan lease tetap, completion terlambat tercatat `accepted` + `accepted_after_booking_change`. Hal yang sama berlaku untuk jalur `snapshot_changed` dan `settings_changed`.
+- **R2** — guard "DP lama sudah ada" hanya memeriksa sebagian syarat, sehingga booking yang tak layak saat insert (total Rp59 jt vs 30 jt × 2) tidak pernah diantre setelah dikoreksi ke Rp60 jt. Guard dihapus; satu event per booking tetap dijamin `exists()` dan aktivasi.
+
+### Masih belum diverifikasi (tidak berubah dari 7 Okt kecuali butir 6)
+
+Butir 1–5 di bawah tetap terbuka. Butir 6 kini selesai lokal (O01–O03), **belum** diuji di staging dengan sesi login nyata atau dua scheduler bersamaan (H06).
+
+---
+
+# Bukti validasi lokal — 7 Oktober 2026 (arsip)
 
 Baseline `048df9373c669e001d4dcd4a1ce70e13cfa83e81`, branch lokal `codex/labbaika-capi-booking-value`. Tidak ada deployment, migrasi produksi, perubahan campaign, atau pengiriman event Meta nyata pada pekerjaan ini. Tidak ada file closing September asli yang diproses.
 

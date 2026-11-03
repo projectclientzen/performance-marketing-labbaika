@@ -12,6 +12,7 @@ const secret = 'test-worker-secret-longer-than-32-characters';
 let settings: { mode: string; dataset_id: string };
 let row: Record<string, unknown>;
 let lease: Record<string, unknown>;
+let runs: Record<string, unknown>[];
 const event = { id: 'event-id', closing_id: 'booking-1', mode: 'test', value_snapshot: 60000000, event_time: '2026-10-07T00:00:00.123456+00:00', lease_token: 'lease-1' };
 const request = () => new Request('http://localhost/api/capi/worker', { method: 'POST', headers: { Authorization: `Bearer ${secret}` } });
 
@@ -21,10 +22,12 @@ beforeEach(() => {
   settings = { mode: 'test', dataset_id: '123' };
   row = { id: event.closing_id, brand_id: brand, first_name: 'Synthetic', whatsapp_e164: '+6281200000000', pdp_consent: true, pdp_consent_at: '2026-10-07T00:00:20.123456+00:00', payment_status: 'dp', paid_amount: 10000000, total_value: 60000000, pax: 2, price_at_transaction: 30000000, closing_date: '2026-10-07', first_payment_received_at: event.event_time, program_id: 'synthetic-program' };
   lease = { status: 'processing', lease_token: event.lease_token, lease_until: '2026-10-07T00:06:00Z' };
+  runs = [];
   mocks.create.mockReturnValue({ from: mocks.from, rpc: mocks.rpc });
   mocks.from.mockImplementation((table: string) => {
     const result = () => Promise.resolve({ data: table === 'capi_settings' ? settings : table === 'closings' ? row : lease, error: null });
-    const chain = { select: () => chain, eq: () => chain, single: result, maybeSingle: result };
+    const insert = (value: Record<string, unknown>) => { if (table === 'capi_worker_runs') runs.push(value); return Promise.resolve({ error: null }); };
+    const chain = { select: () => chain, eq: () => chain, single: result, maybeSingle: result, insert };
     return chain;
   });
   mocks.rpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'claim_capi_events' ? [event] : true, error: null }));
@@ -44,8 +47,9 @@ describe('worker boundary and preflight', () => {
   });
   it('does not claim or deliver dry-run events', async () => {
     settings.mode = 'dry_run';
-    expect(await (await POST(request())).json()).toEqual({ claimed: 0, mode: 'dry_run' });
+    expect(await (await POST(request())).json()).toEqual({ claimed: 0, mode: 'dry_run', run_logged: true });
     expect(mocks.rpc).not.toHaveBeenCalled(); expect(mocks.deliver).not.toHaveBeenCalled();
+    expect(runs).toEqual([{ brand_id: brand, mode: 'dry_run', outcome: 'idle' }]);
   });
   it('pins dataset and brand before claiming', async () => {
     settings.dataset_id = '999';
@@ -72,5 +76,12 @@ describe('worker boundary and preflight', () => {
     mocks.rpc.mockImplementation((name: string) => Promise.resolve({ data: name === 'claim_capi_events' ? [event] : false, error: null }));
     expect(await (await POST(request())).json()).toMatchObject({ completion_unknown: 1, accepted: 0 });
     expect(mocks.deliver).toHaveBeenCalledTimes(1);
+    expect(runs[0]).toMatchObject({ outcome: 'completion_unknown', completion_unknown: 1 });
+  });
+  it('logs each run as counts only — no booking, customer or token data', async () => {
+    await POST(request());
+    expect(runs).toEqual([{ brand_id: brand, mode: 'test', outcome: 'ok', claimed: 1, accepted: 1, failed: 0, held: 0, completion_unknown: 0 }]);
+    const logged = JSON.stringify(runs);
+    for (const secretish of ['booking-1', '6281200000000', 'synthetic-token', 'Synthetic', event.lease_token]) expect(logged).not.toContain(secretish);
   });
 });

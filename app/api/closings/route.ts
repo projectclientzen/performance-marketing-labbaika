@@ -4,6 +4,7 @@ import { hasOwnerAccess } from "@/lib/auth/roles";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
 import { closingSchema } from "@/lib/schemas/closing";
 import { normalizePhoneID } from "@/lib/utils/phone";
+import { checkViolationMessage } from "@/lib/api/check-violation";
 
 export async function POST(request: Request) {
   const { user, appUser, supabase } = await getAuthedAppUser();
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.code === "23505") return NextResponse.json(fail("VALIDATION_ERROR", "Permintaan ini sudah tercatat. Periksa riwayat closing sebelum membuat booking baru."), { status: 422 });
-    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", "Periksa nilai dan waktu pembayaran yang sebenarnya."), { status: 422 });
+    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", checkViolationMessage(error.message)), { status: 422 });
     if (error.message.includes("Nomor WhatsApp tidak valid")) {
       return NextResponse.json(
         fail("VALIDATION_ERROR", "Nomor WhatsApp tidak valid", { whatsapp: error.message }),

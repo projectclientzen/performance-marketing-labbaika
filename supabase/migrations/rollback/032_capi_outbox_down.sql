@@ -1,6 +1,11 @@
 -- DESTRUCTIVE: disposable test DB only, or explicit migration rollback after export/backup.
 -- Prefer operational rollback: set mode off and stop worker; retain accepted-event history.
 begin;
+drop function if exists resolve_capi_event(uuid,text,text);
+drop function if exists capi_coverage(uuid);
+drop table if exists capi_worker_runs;
+drop trigger if exists capi_settings_after_write on capi_settings;
+drop function if exists capi_settings_audit();
 drop trigger if exists capi_closing_after_write on closings;
 drop trigger if exists capi_payment_before_write on closings;
 drop trigger if exists capi_settings_before_write on capi_settings;

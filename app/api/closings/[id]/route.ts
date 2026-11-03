@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
+import { checkViolationMessage } from "@/lib/api/check-violation";
 
 // Explicit allow-list, not a passthrough of the request body. Alasan aslinya
 // adalah mencegah cs mem-PATCH HPP-nya sendiri; kolom biaya itu sudah tidak ada
@@ -71,7 +72,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .eq("id", id);
 
   if (error) {
-    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", "Periksa nilai dan waktu pembayaran yang sebenarnya."), { status: 422 });
+    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", checkViolationMessage(error.message)), { status: 422 });
     if (error.message.includes("sudah dikunci")) {
       return NextResponse.json(fail("PERIOD_LOCKED", error.message), {
         status: httpStatus("PERIOD_LOCKED"),
