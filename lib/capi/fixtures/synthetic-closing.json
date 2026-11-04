@@ -1,0 +1,19 @@
+[
+  {
+    "id": "synthetic-booking-001",
+    "brand_id": "synthetic-brand",
+    "first_name": "Synthetic",
+    "whatsapp_e164": "+6281200000000",
+    "email": "synthetic+trial_test-id@example.invalid",
+    "pdp_consent": true,
+    "pdp_consent_at": "2026-09-29T05:00:00Z",
+    "payment_status": "dp",
+    "paid_amount": 10000000,
+    "total_value": 60000000,
+    "pax": 2,
+    "price_at_transaction": 30000000,
+    "closing_date": "2026-09-29",
+    "first_payment_received_at": "2026-09-29T05:00:00Z",
+    "program_id": "synthetic-program"
+  }
+]

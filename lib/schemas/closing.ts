@@ -31,6 +31,7 @@ const emptyToUndefined = (v: unknown) => (v === '' ? undefined : v);
 
 export const closingSchema = z
   .object({
+    submission_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     first_name: z.string().min(1, 'Nama depan wajib diisi'),
     last_name: z.preprocess(emptyToUndefined, z.string().optional()),
     whatsapp: z.string().refine((v) => normalizePhoneID(v) !== null, {
@@ -58,6 +59,7 @@ export const closingSchema = z
 
     payment_status: z.enum(CREATABLE_PAYMENT_STATUS),
     paid_amount: z.number().int().nonnegative(),
+    first_payment_received_at: z.preprocess(emptyToUndefined, z.string().datetime({ offset: true }).optional()),
 
     province_id: z.preprocess(emptyToUndefined, z.string().optional()),
     city_id: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -87,6 +89,9 @@ export const closingSchema = z
         path: ['price_note'],
         message: 'price_note wajib diisi saat is_price_override true',
       });
+    }
+    if (val.first_payment_received_at && (Date.parse(val.first_payment_received_at) > Date.now() || val.paid_amount <= 0 || val.total_value <= 0 || (val.payment_status === 'lunas' && val.paid_amount !== val.total_value))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['first_payment_received_at'], message: 'Waktu pembayaran harus sudah terjadi, nominal positif, dan lunas sesuai nilai booking.' });
     }
     if (val.pdp_consent && !val.pdp_consent_at) {
       ctx.addIssue({

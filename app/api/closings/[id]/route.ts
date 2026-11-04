@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedAppUser } from "@/lib/auth/session";
 import { ok, fail, httpStatus } from "@/lib/api/envelope";
+import { checkViolationMessage } from "@/lib/api/check-violation";
 
 // Explicit allow-list, not a passthrough of the request body. Alasan aslinya
 // adalah mencegah cs mem-PATCH HPP-nya sendiri; kolom biaya itu sudah tidak ada
@@ -13,6 +14,7 @@ const patchSchema = z.object({
   email: z.string().email().optional(),
   payment_status: z.enum(["dp", "partial", "lunas", "refunded"]).optional(),
   paid_amount: z.number().int().nonnegative().optional(),
+  first_payment_received_at: z.string().datetime({ offset: true }).optional(),
   price_note: z.string().optional(),
   province_id: z.string().optional(),
   city_id: z.string().optional(),
@@ -61,12 +63,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   //     column regardless. Owner already works via the base table
   //     (closings_owner_all covers SELECT), so only cs needs the view.
   const table = appUser.role === "cs" ? "v_closings_cs" : "closings";
+  // The CS view does not expose updated_by. The existing audit trigger
+  // records auth.uid() as the actor independently of this optional metadata.
+  const changes = { ...parsed.data, ...(appUser.role === "cs" ? {} : { updated_by: appUser.id }) };
   const { error, count } = await supabase
     .from(table)
-    .update({ ...parsed.data, updated_by: appUser.id }, { count: "exact" })
+    .update(changes, { count: "exact" })
     .eq("id", id);
 
   if (error) {
+    if (error.code === "23514") return NextResponse.json(fail("VALIDATION_ERROR", checkViolationMessage(error.message)), { status: 422 });
     if (error.message.includes("sudah dikunci")) {
       return NextResponse.json(fail("PERIOD_LOCKED", error.message), {
         status: httpStatus("PERIOD_LOCKED"),
