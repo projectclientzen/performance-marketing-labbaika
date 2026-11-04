@@ -103,3 +103,61 @@ Tanpa akses VPS/DB produksi. Yang bisa dicek dari luar:
 2. **Jalur deploy terbelah.** Traffic produksi kini ke service `labbaika-capi` (port 3004, worktree detached `c87f5b9`), sedangkan auto-deploy `deploy_labbaika.py` tetap membangun `main` ke port 3003 yang tidak lagi menerima traffic. Perbaikan apa pun yang di-merge ke `main` **tidak akan sampai ke pengguna** sampai ini disatukan. Karena 032 sudah terpasang di produksi, merge PR #2 ke `main` sekarang aman dari sisi skema; setelah itu nginx bisa dikembalikan ke 3003 dan service 3004 dipensiunkan. Keputusan merge ada di Maszen.
 3. **Runbook A9 butir 3 perlu dikoreksi.** Implementasi sengaja **tidak** punya jalur kirim ulang: "Rekonsiliasi" hanya menawarkan *dikonfirmasi diterima* → `accepted` atau *dikonfirmasi tidak diterima* → `cancelled`. Event yang tidak diterima tidak menjadi `failed`/retry dari monitor. Kirim ulang menunggu kontrak dedup terverifikasi (dedup `event_name`+`event_id` 48 jam dari A2 bisa menjadi dasar desainnya nanti).
 4. ~~**Risiko Purchase ganda dengan Gass.**~~ **Ditutup 4 Nov:** menurut Maszen, Gass hanya mengirim data sebelum tahap Purchase; Purchase tidak pernah ter-trigger dari Gass (itu alasan CAPI Labbaika dibangun). Tidak ada sumber Purchase kedua ke pixel ini. Event non-Purchase dari Gass (bila ada) tidak bentrok dengan `event_name=Purchase`. Gass tetap dipakai untuk validasi market (data lead/traffic). Syaratnya: fitur trigger Purchase di Gass (Format Purchase) dibiarkan nonaktif selama CAPI Labbaika live, supaya tidak ada dua sumber Purchase untuk booking yang sama.
+
+## 11. Hermes — verifikasi token + penyatuan jalur deploy (4 Nov 2026)
+
+Dikerjakan Hermes di VPS atas instruksi Chief. Tanpa secret di dokumen ini.
+
+### Bagian 1 — akses token ke dataset
+
+Token yang dipakai: `META_CAPI_ACCESS_TOKEN` dari `/opt/labbaika-capi/.env.production` (system user token app `936342762812978`).
+
+| # | Cek | Perintah | Hasil |
+|---|---|---|---|
+| 1.1 | Baca dataset | `GET /v21.0/1970649077141329?fields=id,name` | ✅ **HTTP 200** → `{"id":"1970649077141329","name":"Pixel Labbaika"}` |
+| 1.3 | Dataset terhubung ke ad account | `GET /v21.0/act_2631246970383085/adspixels?fields=id,name` | ✅ **HTTP 200** → pixel `1970649077141329` terdaftar di ad account `act_2631246970383085` |
+| 1.2 | Event sintetis ke Test Events | `POST /v21.0/1970649077141329/events` + `test_event_code` | ⏳ **Belum dijalankan** — `META_CAPI_TEST_EVENT_CODE` masih kosong dan kode hanya bisa dibuat/diambil dari UI Events Manager (tidak ada endpoint Graph untuk membuatnya) |
+
+**Kesimpulan Bagian 1:** temuan #1 di §10 (token gagal baca dataset / `#100 Missing Permission`) **tidak terbukti lagi** — token sekarang bisa membaca dataset *dan* dataset terkonfirmasi terhubung ke ad account. Sisa satu langkah: butuh `test_event_code` dari Events Manager untuk membuktikan jalur **tulis** event.
+
+**Cara menyelesaikan 1.2 (butuh akses UI, ±1 menit):**
+1. Events Manager → dataset **Pixel Labbaika** (`1970649077141329`) → tab **Test Events**.
+2. Salin kode di kotak "Test Event Code" (format `TEST12345`).
+3. Berikan kode itu ke Hermes (atau isi `META_CAPI_TEST_EVENT_CODE=` di env). Setelah itu Hermes kirim satu event `Purchase` sintetis (value 1000 IDR, `action_source=chat`, `ph` = SHA-256 nomor uji internal) dan laporkan `events_received` + tangkapan layar tersamarkan.
+
+**Catatan mode:** sesuai instruksi, `dry_run` hanya dipicu bila ada yang **gagal**. 1.1 dan 1.3 lulus, 1.2 belum dijalankan (bukan gagal). Mode tetap **`live`**. Risiko residu: bila closing nyata pertama masuk **sebelum** 1.2 diverifikasi, dan ternyata token tidak bisa menulis event, event akan berhenti di `held` (tidak dobel, tidak hilang) dan bisa direkonsiliasi. Bila Chief ingin nol risiko sampai 1.2 beres, set mode `dry_run` dulu dari `/owner/capi`.
+
+### Bagian 2 — produksi kembali ke jalur `main` (port 3003)
+
+| Langkah | Bukti |
+|---|---|
+| `deploy_labbaika.py` membangun `09bc6a8` | `git rev-parse HEAD` → `09bc6a803ba216823a5d7a1fa00887463123c0b0`; state deploy `status: deployed` @ 2026-11-04T09:58:13+0700 |
+| Build sempat gagal 1× | `npm ci` → `ENOTEMPTY` pada `node_modules` korup. Diperbaiki dengan hapus `node_modules` lalu deploy ulang → sukses. Tidak ada perubahan kode. |
+| Health 3003 | `GET 127.0.0.1:3003/api/health` → **200** `{"status":"ok","supabase_reachable":true,"query_ok":true}` |
+| Worker tanpa auth | `POST 127.0.0.1:3003/api/capi/worker` → **401** ✅ (build `main` sudah memuat route CAPI) |
+| Env CAPI disalin | `META_CAPI_*` + `CAPI_WORKER_SECRET` ditambahkan ke `/opt/labbaika-reporting/.env.production` (mode 600). `SUPABASE_SERVICE_ROLE_KEY` sudah ada sebelumnya. Backup env lama: `/root/.hermes/cache/labbaika_capi/env-reporting.bak-*`. |
+| Restart + tes worker ber-Bearer | `POST 127.0.0.1:3003/api/capi/worker` + `Authorization: Bearer` → **200** `{"claimed":0,"accepted":0,"failed":0,"held":0,"completion_unknown":0,"run_logged":true}` |
+| File env worker dipindah | `/etc/labbaika/capi-worker.env` (mode 600, root) — di luar worktree CAPI. Isi: `CAPI_WORKER_URL=http://127.0.0.1:3003/api/capi/worker` + `CAPI_WORKER_SECRET`. |
+| Cron tunggal | Satu baris saja (lihat di bawah), mengarah ke skrip `main` |
+| nginx kembali ke 3003 | `proxy_pass http://127.0.0.1:3003;` · `nginx -t` OK · reload OK. Backup: `/etc/nginx/sites-available/labbaika-reporting.bak-*` |
+| Health publik | `GET https://report.labbaikatravel.id/api/health` → **200** |
+| Worker publik tanpa auth | **401** ✅ · `/owner/capi` tanpa login → **307** ke `/login` ✅ |
+| Tick manual ke 3003 | `http=200 {"claimed":0,...}` ✅ |
+| Service 3004 dipensiunkan | `labbaika-capi` → **inactive + disabled**; port 3004 sudah tidak mendengar. Worktree `/opt/labbaika-capi` disimpan sebagai cadangan rollback sampai **11 Nov 2026**, lalu dihapus. |
+
+**Baris cron akhir (tanpa secret):**
+```
+*/5 * * * * set -a; . /etc/labbaika/capi-worker.env; set +a; /opt/labbaika-reporting/scripts/capi-worker-tick.sh >> /var/log/capi-worker.log 2>&1
+```
+
+### State akhir
+
+| Objek | Nilai |
+|---|---|
+| Kode produksi | `main` @ `09bc6a8` (PR #2 sudah ter-merge), port **3003** |
+| nginx | `report.labbaikatravel.id` → **3003** (jalur tunggal) |
+| Service cadangan | `labbaika-capi` (:3004) stop + disable, worktree disimpan 7 hari |
+| `capi_settings` | brand `14e9cf99-…` · mode **`live`** · dataset `1970649077141329` · `enabled_at 2026-11-04T02:23:16Z` |
+| `capi_events` | 0 baris (belum ada closing November) |
+| Heartbeat | `capi_worker_runs` mencatat `live/ok` tiap 5 menit; log `http=200` konsisten |
+| Sisa pekerjaan | **1.2** — butuh `test_event_code` dari Events Manager |
