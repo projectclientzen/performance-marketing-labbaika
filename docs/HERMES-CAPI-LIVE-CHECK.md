@@ -116,7 +116,7 @@ Token yang dipakai: `META_CAPI_ACCESS_TOKEN` dari `/opt/labbaika-capi/.env.produ
 |---|---|---|---|
 | 1.1 | Baca dataset | `GET /v21.0/1970649077141329?fields=id,name` | ✅ **HTTP 200** → `{"id":"1970649077141329","name":"Pixel Labbaika"}` |
 | 1.3 | Dataset terhubung ke ad account | `GET /v21.0/act_2631246970383085/adspixels?fields=id,name` | ✅ **HTTP 200** → pixel `1970649077141329` terdaftar di ad account `act_2631246970383085` |
-| 1.2 | Event sintetis ke Test Events | `POST /v21.0/1970649077141329/events` + `test_event_code` | ⏳ **Belum dijalankan** — `META_CAPI_TEST_EVENT_CODE` masih kosong dan kode hanya bisa dibuat/diambil dari UI Events Manager (tidak ada endpoint Graph untuk membuatnya) |
+| 1.2 | Event sintetis ke Test Events | `POST /v21.0/1970649077141329/events` + `test_event_code=TEST92313` | ✅ **HTTP 200** → `{"events_received":1}` — Purchase sintetis value 1000 IDR, `action_source=chat`, `ph`=SHA-256 nomor uji, `event_id` berprefiks `test:integration:`. Terkirim ke Test Events. |
 
 **Kesimpulan Bagian 1:** temuan #1 di §10 (token gagal baca dataset / `#100 Missing Permission`) **tidak terbukti lagi** — token sekarang bisa membaca dataset *dan* dataset terkonfirmasi terhubung ke ad account. Sisa satu langkah: butuh `test_event_code` dari Events Manager untuk membuktikan jalur **tulis** event.
 
