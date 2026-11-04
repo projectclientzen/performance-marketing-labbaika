@@ -80,3 +80,26 @@ JANGAN push/merge ke `main`. JANGAN jalankan `apply-migrations.sh` ke produksi d
 - Worktree: `/opt/labbaika-capi`
 - Backup DB: R2 `labbaika-reporting/backups/db-20261104.dump`
 - Log worker: `/var/log/capi-worker.log`
+
+## 10. Verifikasi Claude Code — 4 Nov 2026
+
+Tanpa akses VPS/DB produksi. Yang bisa dicek dari luar:
+
+| Cek | Hasil |
+|---|---|
+| `GET /api/health` publik | ✅ 200, `supabase_reachable:true`, `query_ok:true` |
+| `POST /api/capi/worker` tanpa Bearer / Bearer salah | ✅ 401 / 401 |
+| `/api/capi/settings`, `/api/capi/monitor`, `POST /api/exports/cs-performance` tanpa login | ✅ 401 — route branch CAPI dilayani produksi (build lama tidak punya route ini) |
+| `/owner/capi` tanpa login | ✅ 307 → `/login?next=/owner/capi` |
+| Checklist §7 butir 1, 2, 5, 6, 7 (git di VPS, systemd, isi `capi_settings`/`capi_events`, log cron) | ⏳ Belum bisa dicek dari sini — butuh Hermes/akses VPS |
+| Butir 8–9 (UI dengan login owner/CS) | ⏳ Butuh sesi login |
+
+### Temuan yang perlu ditindaklanjuti
+
+1. **Akses token ke dataset belum terbukti — prioritas tertinggi.** Test Events (A8) dilewati dan `META_CAPI_TEST_EVENT_CODE` kosong. Di A3, token yang sama gagal membaca pixel (`#100 Missing Permission`), dan dataset `1970649077141329` milik BM "Labbaika Travel - Pusat" (`1659244771138012`), berbeda dari BM ad account ("Kantor MJO Labs" `2212766145610961`). Kalau system user tidak punya akses ke dataset itu, setiap Purchase November akan ditolak Meta (4xx) dan berhenti di `held` / `meta_rejected` — tidak dobel, tapi tidak ada yang sampai ke Meta. Sebelum closing nyata pertama:
+   - `GET https://graph.facebook.com/v21.0/1970649077141329?fields=id,name` dengan token CAPI harus 200.
+   - Satu event sintetis lewat curl (bukan lewat app) ke `POST /v21.0/1970649077141329/events` dengan `test_event_code` dari Events Manager → harus `events_received: 1` dan terlihat di Test Events. Tidak mencemari data produksi.
+   - Pastikan dataset terhubung ke ad account `act_2631246970383085` (Events Manager → Settings → connected assets). Tanpa itu event bisa diterima tapi tidak pernah teratribusi ke iklan akun ini.
+2. **Jalur deploy terbelah.** Traffic produksi kini ke service `labbaika-capi` (port 3004, worktree detached `c87f5b9`), sedangkan auto-deploy `deploy_labbaika.py` tetap membangun `main` ke port 3003 yang tidak lagi menerima traffic. Perbaikan apa pun yang di-merge ke `main` **tidak akan sampai ke pengguna** sampai ini disatukan. Karena 032 sudah terpasang di produksi, merge PR #2 ke `main` sekarang aman dari sisi skema; setelah itu nginx bisa dikembalikan ke 3003 dan service 3004 dipensiunkan. Keputusan merge ada di Maszen.
+3. **Runbook A9 butir 3 perlu dikoreksi.** Implementasi sengaja **tidak** punya jalur kirim ulang: "Rekonsiliasi" hanya menawarkan *dikonfirmasi diterima* → `accepted` atau *dikonfirmasi tidak diterima* → `cancelled`. Event yang tidak diterima tidak menjadi `failed`/retry dari monitor. Kirim ulang menunggu kontrak dedup terverifikasi (dedup `event_name`+`event_id` 48 jam dari A2 bisa menjadi dasar desainnya nanti).
+4. **Risiko Purchase ganda dengan Gass.** Fungsi export Gass Apps dipulihkan. Kalau tim memasukkan export itu ke Gass dan Gass mengirim Purchase ke pixel yang sama, booking yang sama terhitung dua kali. Perlu konfirmasi Maszen apakah alur itu masih dipakai.
