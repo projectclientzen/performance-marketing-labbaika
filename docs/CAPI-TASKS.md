@@ -79,6 +79,8 @@ Status W01–W06: **dirancang, belum diimplementasikan**. Jangan menandai selesa
 | O03 | Audit perubahan settings CAPI dan detail run worker persisten | **Selesai lokal** (4 Nov): trigger `capi_settings_audit` (aktor, mode/dataset lama-baru) dan tabel `capi_worker_runs` (hitungan + kode, tanpa payload/token/PII) sebagai heartbeat; monitor memperingatkan bila worker tak jalan 15 menit atau ada `completion_unknown` |
 | O04 | Upload/map XLSX langsung dalam dashboard | Backlog; saat ini konversi file oleh Hermes |
 | O05 | Audit export/analytics lama untuk refund dan duplikat booking manual | Backlog terpisah, menjaga definisi report lama |
+| O06 | Monitor jeda input DP → closing diinput per CS, peringatan bila > H+2 (inti nilai CAPI Fase 1, karena batas umur event ±7 hari) | Backlog; bisa dikerjakan tanpa akun Meta |
+| M04 | Event tengah corong (konsultasi/penawaran) dalam 7 hari setelah klik untuk sinyal optimasi siklus panjang | Backlog; butuh lead individual dari Fase 2 |
 
 ## Aturan pengerjaan paralel
 
